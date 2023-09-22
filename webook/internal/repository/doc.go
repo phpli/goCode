@@ -1,2 +1,2 @@
-// Package repository 代表的是存储领域对象
+// Package repository 代表领域对象的存储
 package repository

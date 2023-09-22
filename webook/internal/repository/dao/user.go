@@ -18,20 +18,26 @@ func NewUserDAO(db *gorm.DB) *UserDAO {
 
 func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 	now := time.Now().UnixMilli()
-	u.Utime = now
 	u.Ctime = now
+	u.Utime = now
 	return dao.db.WithContext(ctx).Create(&u).Error
 }
 
 type User struct {
-	// 自增主键
 	Id       int64  `gorm:"primaryKey,autoIncrement"`
 	Email    string `gorm:"unique"`
 	Password string
 
-	// 这里，永远存储 UTC 0 过来的毫秒数
+	// 时区，UTC 0 的毫秒数
+	// 创建时间
 	Ctime int64
+	// 更新时间
 	Utime int64
 
+	// json 存储
 	//Addr string
 }
+
+//type Address struct {
+//	Uid
+//}

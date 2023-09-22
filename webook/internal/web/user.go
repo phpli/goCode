@@ -22,9 +22,9 @@ type UserHandler struct {
 
 func NewUserHandler(svc *service.UserService) *UserHandler {
 	return &UserHandler{
-		svc:            svc,
 		emailRexExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
 		passwordRexExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
+		svc:            svc,
 	}
 }
 

@@ -15,14 +15,31 @@ import (
 
 func main() {
 	db := initDB()
-	server := initWebServer()
-	//server.POST("/users/signup", hdl.SignUp)
-	//server.POST("/users/login", hdl.Login)
-	//server.POST("/users/edit", hdl.Edit)
-	//server.GET("/users/profile", hdl.Profile)
-	initUser(db, server)
 
+	server := initWebServer()
+	initUserHdl(db, server)
 	server.Run(":8080")
+}
+
+func initUserHdl(db *gorm.DB, server *gin.Engine) {
+	ud := dao.NewUserDAO(db)
+	ur := repository.NewUserRepository(ud)
+	us := service.NewUserService(ur)
+	hdl := web.NewUserHandler(us)
+	hdl.RegisterRoutes(server)
+}
+
+func initDB() *gorm.DB {
+	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
+	if err != nil {
+		panic(err)
+	}
+
+	err = dao.InitTables(db)
+	if err != nil {
+		panic(err)
+	}
+	return db
 }
 
 func initWebServer() *gin.Engine {
@@ -48,24 +65,4 @@ func initWebServer() *gin.Engine {
 		println("这是我的 Middleware")
 	})
 	return server
-}
-
-func initUser(db *gorm.DB, server *gin.Engine) {
-	ud := dao.NewUserDAO(db)
-	ur := repository.NewUserRepository(ud)
-	us := service.NewUserService(ur)
-	hdl := web.NewUserHandler(us)
-	hdl.RegisterRoutes(server)
-}
-
-func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
-	if err != nil {
-		panic(err)
-	}
-	err = dao.InitTables(db)
-	if err != nil {
-		panic(err)
-	}
-	return db
 }

@@ -1,3 +1,2 @@
-// Package dao 代表（关系型）数据库存储
-// Data Access Object
+// Package dao 代表对数据库的操作
 package dao
