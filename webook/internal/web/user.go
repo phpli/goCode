@@ -85,11 +85,14 @@ func (h *UserHandler) SignUp(ctx *gin.Context) {
 		Email:    req.Email,
 		Password: req.Password,
 	})
-	if err != nil {
+	switch err {
+	case nil:
+		ctx.String(http.StatusOK, "注册成功")
+	case service.ErrDuplicateEmail:
+		ctx.String(http.StatusOK, "邮箱冲突，请换一个")
+	default:
 		ctx.String(http.StatusOK, "系统错误")
-		return
 	}
-	ctx.String(http.StatusOK, "注册成功")
 }
 
 func (h *UserHandler) Login(ctx *gin.Context) {
