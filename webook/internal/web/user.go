@@ -111,8 +111,8 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 		sess := sessions.Default(ctx)
 		sess.Set("userId", u.Id)
 		sess.Options(sessions.Options{
-			// 十五分钟
-			MaxAge: 900,
+			// 十分钟
+			MaxAge: 30,
 		})
 		err = sess.Save()
 		if err != nil {
@@ -128,9 +128,10 @@ func (h *UserHandler) Login(ctx *gin.Context) {
 }
 
 func (h *UserHandler) Edit(ctx *gin.Context) {
-
+	// 嵌入一段刷新过期时间的代码
 }
 
 func (h *UserHandler) Profile(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "这是 profile")
+	// 嵌入一段刷新过期时间的代码
 }
