@@ -13,6 +13,7 @@ func main() {
 	fmt.Println("DeferReturn", DeferReturn())
 	fmt.Println("DeferReturnV1", DeferReturnV1())
 	fmt.Println("DeferReturnV2", DeferReturnV2().name)
+	fmt.Println("DeferReturnV3", DeferReturnV3().name)
 }
 
 func Invoke() {
