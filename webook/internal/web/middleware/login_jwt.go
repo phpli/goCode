@@ -50,6 +50,13 @@ func (m *LoginJWTMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
 			return
 		}
 
+		if uc.UserAgent != ctx.GetHeader("User-Agent") {
+			// 后期我们讲到了监控告警的时候，这个地方要埋点
+			// 能够进来这个分支的，大概率是攻击者
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
 		expireTime := uc.ExpiresAt
 		// 不判定都可以
 		//if expireTime.Before(time.Now()) {
@@ -58,7 +65,7 @@ func (m *LoginJWTMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
 		//}
 		// 剩余过期时间 < 50s 就要刷新
 		if expireTime.Sub(time.Now()) < time.Second*50 {
-			uc.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
+			uc.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute * 5))
 			tokenStr, err = token.SignedString(web.JWTKey)
 			ctx.Header("x-jwt-token", tokenStr)
 			if err != nil {
