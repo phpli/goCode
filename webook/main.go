@@ -14,15 +14,20 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"net/http"
 	"strings"
 	"time"
 )
 
 func main() {
-	db := initDB()
+	//db := initDB()
 
-	server := initWebServer()
-	initUserHdl(db, server)
+	//server := initWebServer()
+	//initUserHdl(db, server)
+	server := gin.Default()
+	server.GET("/hello", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "hello，启动成功了！")
+	})
 	server.Run(":8080")
 }
 
