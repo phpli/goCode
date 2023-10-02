@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gitee.com/geekbang/basic-go/webook/config"
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
@@ -20,11 +21,11 @@ import (
 )
 
 func main() {
-	//db := initDB()
+	db := initDB()
 
-	//server := initWebServer()
-	//initUserHdl(db, server)
-	server := gin.Default()
+	server := initWebServer()
+	initUserHdl(db, server)
+	//server := gin.Default()
 	server.GET("/hello", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "hello，启动成功了！")
 	})
@@ -40,7 +41,7 @@ func initUserHdl(db *gorm.DB, server *gin.Engine) {
 }
 
 func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
+	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
 	if err != nil {
 		panic(err)
 	}
@@ -78,7 +79,7 @@ func initWebServer() *gin.Engine {
 	})
 
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: config.Config.Redis.Addr,
 	})
 
 	server.Use(ratelimit.NewBuilder(redisClient,
