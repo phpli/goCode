@@ -3,14 +3,18 @@ package main
 import (
 	"gitee.com/geekbang/basic-go/webook/config"
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
+	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
+	"gitee.com/geekbang/basic-go/webook/internal/service/sms"
+	"gitee.com/geekbang/basic-go/webook/internal/service/sms/localsms"
 	"gitee.com/geekbang/basic-go/webook/internal/web"
 	"gitee.com/geekbang/basic-go/webook/internal/web/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"net/http"
@@ -21,8 +25,12 @@ import (
 func main() {
 	db := initDB()
 
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
 	server := initWebServer()
-	initUserHdl(db, server)
+	codeSvc := initCodeSvc(redisClient)
+	initUserHdl(db, redisClient, codeSvc, server)
 	//server := gin.Default()
 	server.GET("/hello", func(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "hello，启动成功了！")
@@ -30,12 +38,26 @@ func main() {
 	server.Run(":8080")
 }
 
-func initUserHdl(db *gorm.DB, server *gin.Engine) {
+func initUserHdl(db *gorm.DB,
+	redisClient redis.Cmdable,
+	codeSvc *service.CodeService,
+	server *gin.Engine) {
 	ud := dao.NewUserDAO(db)
-	ur := repository.NewUserRepository(ud)
+	uc := cache.NewUserCache(redisClient)
+	ur := repository.NewUserRepository(ud, uc)
 	us := service.NewUserService(ur)
-	hdl := web.NewUserHandler(us)
+	hdl := web.NewUserHandler(us, codeSvc)
 	hdl.RegisterRoutes(server)
+}
+
+func initCodeSvc(redisClient redis.Cmdable) *service.CodeService {
+	cc := cache.NewCodeCache(redisClient)
+	crepo := repository.NewCodeRepository(cc)
+	return service.NewCodeService(crepo, initMemorySms())
+}
+
+func initMemorySms() sms.Service {
+	return localsms.NewService()
 }
 
 func initDB() *gorm.DB {

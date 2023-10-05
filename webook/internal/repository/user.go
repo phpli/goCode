@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
@@ -10,8 +11,8 @@ import (
 )
 
 var (
-	ErrDuplicateEmail = dao.ErrDuplicateEmail
-	ErrUserNotFound   = dao.ErrRecordNotFound
+	ErrDuplicateUser = dao.ErrDuplicateEmail
+	ErrUserNotFound  = dao.ErrRecordNotFound
 )
 
 type UserRepository struct {
@@ -27,10 +28,7 @@ func NewUserRepository(dao *dao.UserDAO, c *cache.UserCache) *UserRepository {
 }
 
 func (repo *UserRepository) Create(ctx context.Context, u domain.User) error {
-	return repo.dao.Insert(ctx, dao.User{
-		Email:    u.Email,
-		Password: u.Password,
-	})
+	return repo.dao.Insert(ctx, repo.toEntity(u))
 }
 
 func (repo *UserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
@@ -44,7 +42,8 @@ func (repo *UserRepository) FindByEmail(ctx context.Context, email string) (doma
 func (repo *UserRepository) toDomain(u dao.User) domain.User {
 	return domain.User{
 		Id:       u.Id,
-		Email:    u.Email,
+		Email:    u.Email.String,
+		Phone:    u.Phone.String,
 		Password: u.Password,
 		AboutMe:  u.AboutMe,
 		Nickname: u.Nickname,
@@ -54,8 +53,15 @@ func (repo *UserRepository) toDomain(u dao.User) domain.User {
 
 func (repo *UserRepository) toEntity(u domain.User) dao.User {
 	return dao.User{
-		Id:       u.Id,
-		Email:    u.Email,
+		Id: u.Id,
+		Email: sql.NullString{
+			String: u.Email,
+			Valid:  u.Email != "",
+		},
+		Phone: sql.NullString{
+			String: u.Phone,
+			Valid:  u.Phone != "",
+		},
 		Password: u.Password,
 		Birthday: u.Birthday.UnixMilli(),
 		AboutMe:  u.AboutMe,
@@ -130,4 +136,12 @@ func (repo *UserRepository) FindByIdV1(ctx context.Context, uid int64) (domain.U
 		return domain.User{}, err
 	}
 
+}
+
+func (repo *UserRepository) FindByPhone(ctx context.Context, phone string) (domain.User, error) {
+	u, err := repo.dao.FindByPhone(ctx, phone)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return repo.toDomain(u), nil
 }
