@@ -24,7 +24,6 @@ import (
 
 func main() {
 	db := initDB()
-
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: config.Config.Redis.Addr,
 	})

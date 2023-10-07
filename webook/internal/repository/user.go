@@ -20,7 +20,38 @@ type UserRepository struct {
 	cache *cache.UserCache
 }
 
-func NewUserRepository(dao *dao.UserDAO, c *cache.UserCache) *UserRepository {
+type DBConfig struct {
+	DSN string
+}
+
+type CacheConfig struct {
+	Addr string
+}
+
+// NewUserRepositoryV2 强耦合到了 JSON
+//func NewUserRepositoryV2(cfgBytes string) *UserRepository {
+//	var cfg DBConfig
+//	err := json.Unmarshal([]byte(cfgBytes), &cfg)
+//}
+
+// NewUserRepositoryV1 强耦合（跨层的），严重缺乏扩展性
+//func NewUserRepositoryV1(dbCfg DBConfig, cCfg CacheConfig) (*UserRepository, error) {
+//	db, err := gorm.Open(mysql.Open(dbCfg.DSN))
+//	if err != nil {
+//		return nil, err
+//	}
+//	ud := dao.NewUserDAO(db)
+//	uc := cache.NewUserCache(redis.NewClient(&redis.Options{
+//		Addr: cCfg.Addr,
+//	}))
+//	return &UserRepository{
+//		dao:   ud,
+//		cache: uc,
+//	}, nil
+//}
+
+func NewUserRepository(dao *dao.UserDAO,
+	c *cache.UserCache) *UserRepository {
 	return &UserRepository{
 		dao:   dao,
 		cache: c,
