@@ -7,6 +7,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	jwt "github.com/golang-jwt/jwt/v5"
+	"log"
 	"net/http"
 	"time"
 )
@@ -127,6 +128,7 @@ func (h *UserHandler) SendSMSLoginCode(ctx *gin.Context) {
 			Msg:  "系统错误",
 		})
 		// 补日志的
+		log.Println(err)
 	}
 }
 
