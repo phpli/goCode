@@ -40,4 +40,9 @@ func main() {
 
 	// Delete - 删除 product
 	db.Delete(&product, 1)
+
+	// 增删改
+	//db.Exec("UPDATE")
+
+	//res := db.Raw("SELECT").Rows()
 }
