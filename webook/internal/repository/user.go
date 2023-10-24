@@ -21,11 +21,20 @@ type UserRepository interface {
 	UpdateNonZeroFields(ctx context.Context, user domain.User) error
 	FindByPhone(ctx context.Context, phone string) (domain.User, error)
 	FindById(ctx context.Context, uid int64) (domain.User, error)
+	FindByWechat(ctx context.Context, openId string) (domain.User, error)
 }
 
 type CachedUserRepository struct {
 	dao   dao.UserDAO
 	cache cache.UserCache
+}
+
+func (repo *CachedUserRepository) FindByWechat(ctx context.Context, openId string) (domain.User, error) {
+	ue, err := repo.dao.FindByWechat(ctx, openId)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return repo.toDomain(ue), nil
 }
 
 type DBConfig struct {
@@ -88,6 +97,10 @@ func (repo *CachedUserRepository) toDomain(u dao.User) domain.User {
 		Nickname: u.Nickname,
 		Birthday: time.UnixMilli(u.Birthday),
 		Ctime:    time.UnixMilli(u.Ctime),
+		WechatInfo: domain.WechatInfo{
+			OpenId:  u.WechatOpenId.String,
+			UnionId: u.WechatUnionId.String,
+		},
 	}
 }
 
@@ -104,6 +117,14 @@ func (repo *CachedUserRepository) toEntity(u domain.User) dao.User {
 		},
 		Password: u.Password,
 		Birthday: u.Birthday.UnixMilli(),
+		WechatUnionId: sql.NullString{
+			String: u.WechatInfo.UnionId,
+			Valid:  u.WechatInfo.UnionId != "",
+		},
+		WechatOpenId: sql.NullString{
+			String: u.WechatInfo.OpenId,
+			Valid:  u.WechatInfo.OpenId != "",
+		},
 		AboutMe:  u.AboutMe,
 		Nickname: u.Nickname,
 	}
