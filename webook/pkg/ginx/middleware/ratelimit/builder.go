@@ -1,6 +1,7 @@
 package ratelimit
 
 import (
+	"context"
 	_ "embed"
 	"fmt"
 	"gitee.com/geekbang/basic-go/webook/pkg/limiter"
@@ -28,6 +29,15 @@ func (b *Builder) Prefix(prefix string) *Builder {
 
 func (b *Builder) Build() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+
+		if ctx.GetHeader("x-stress") == "true" {
+			// 用 context.Context 来带这个标记位
+			newCtx := context.WithValue(ctx, "x-stress", true)
+			ctx.Request = ctx.Request.Clone(newCtx)
+			ctx.Next()
+			return
+		}
+
 		limited, err := b.limiter.Limit(ctx, fmt.Sprintf("%s:%s", b.prefix, ctx.ClientIP()))
 		if err != nil {
 			log.Println(err)
