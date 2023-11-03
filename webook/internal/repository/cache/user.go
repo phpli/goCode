@@ -30,7 +30,7 @@ func (c *RedisUserCache) Get(ctx context.Context, uid int64) (domain.User, error
 	key := c.key(uid)
 	// 我假定这个地方用 JSON 来
 	data, err := c.cmd.Get(ctx, key).Result()
-	//data, err := c.cmd.Get(ctx, key).Bytes()
+	//data, err := c.cmd.Get(ctx, firstKey).Bytes()
 	if err != nil {
 		return domain.User{}, err
 	}
