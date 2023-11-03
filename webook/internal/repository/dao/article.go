@@ -12,10 +12,35 @@ type ArticleDAO interface {
 	Insert(ctx context.Context, art Article) (int64, error)
 	UpdateById(ctx context.Context, entity Article) error
 	Sync(ctx context.Context, entity Article) (int64, error)
+	SyncStatus(ctx context.Context, uid int64, id int64, status uint8) error
 }
 
 type ArticleGORMDAO struct {
 	db *gorm.DB
+}
+
+func (a *ArticleGORMDAO) SyncStatus(ctx context.Context, uid int64, id int64, status uint8) error {
+	now := time.Now().UnixMilli()
+	return a.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&Article{}).
+			Where("id = ? and author_id = ?", uid, id).
+			Updates(map[string]any{
+				"utime":  now,
+				"status": status,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected != 1 {
+			return errors.New("ID 不对或者创作者不对")
+		}
+		return tx.Model(&PublishedArticle{}).
+			Where("id = ?", uid).
+			Updates(map[string]any{
+				"utime":  now,
+				"status": status,
+			}).Error
+	})
 }
 
 func (a *ArticleGORMDAO) Sync(ctx context.Context, art Article) (int64, error) {
@@ -48,6 +73,7 @@ func (a *ArticleGORMDAO) Sync(ctx context.Context, art Article) (int64, error) {
 				"title":   pubArt.Title,
 				"content": pubArt.Content,
 				"utime":   now,
+				"status":  pubArt.Status,
 			}),
 		}).Create(&pubArt).Error
 		return err
@@ -106,6 +132,7 @@ func (a *ArticleGORMDAO) UpdateById(ctx context.Context, art Article) error {
 		Where("id = ? AND author_id = ?", art.Id, art.AuthorId).Updates(map[string]any{
 		"title":   art.Title,
 		"content": art.Content,
+		"status":  art.Status,
 		"utime":   now,
 	})
 	if res.Error != nil {
@@ -139,6 +166,7 @@ type Article struct {
 	Content string `gorm:"type=BLOB"`
 	// 我要根据创作者ID来查询
 	AuthorId int64 `gorm:"index"`
+	Status   uint8
 	Ctime    int64
 	// 更新时间
 	Utime int64
