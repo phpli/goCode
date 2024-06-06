@@ -6,21 +6,20 @@ import (
 	"net/http"
 )
 
-const emailRegexPattern = "^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$"
-
-// 和上面比起来，用 ` 看起来就比较清爽
-// go get
-const passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
-
 type UserHandler struct {
-	emailRegexExp    *regexp.Regexp
-	passwordRegexExp *regexp.Regexp
+	emailExp    *regexp.Regexp
+	passwordExp *regexp.Regexp
 }
 
 func NewUserHandler() *UserHandler {
+	const (
+		emailRegexPattern = "^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$"
+		// 和上面比起来，用 ` 看起来就比较清爽
+		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
+	)
 	return &UserHandler{
-		emailRegexExp:    regexp.MustCompile(emailRegexPattern, regexp.None),
-		passwordRegexExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
+		emailExp:    regexp.MustCompile(emailRegexPattern, regexp.None), //预编译
+		passwordExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
 	}
 }
 
@@ -42,44 +41,42 @@ func (c *UserHandler) RegisterRoutes(server *gin.Engine) {
 // SignUp 用户注册接口
 func (c *UserHandler) SignUp(ctx *gin.Context) {
 	type SignUpReq struct {
-		Email           string `json:"email"`
-		Password        string `json:"password"`
-		ConfirmPassword string `json:"confirmPassword"`
+		Email           string `form:"email" json:"email"`
+		Password        string `form:"password" json:"password"`
+		ConfirmPassword string `form:"ConfirmPassword" json:"ConfirmPassword"`
 	}
-
 	var req SignUpReq
-	// 当我们调用 Bind 方法的时候，如果有问题，Bind 方法已经直接写响应回去了
+	//ShouldBind 方法尝试将请求体绑定到指定的结构体。如果绑定失败，
+	//它不会立即返回错误，而是返回一个错误值，让你可以根据需要自行处理错误。
+	//Bind可以直接返回
 	if err := ctx.Bind(&req); err != nil {
 		return
 	}
-
-	isEmail, err := c.emailRegexExp.MatchString(req.Email)
+	ok, err := c.emailExp.MatchString(req.Email)
 	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
+		ctx.String(http.StatusInternalServerError, "系统错误")
 		return
 	}
-	if !isEmail {
-		ctx.String(http.StatusOK, "邮箱不正确")
+	if !ok {
+		ctx.String(http.StatusBadRequest, "邮箱错误")
+		return
+	}
+	ok, err = c.passwordExp.MatchString(req.Password)
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+	if !ok {
+		ctx.String(http.StatusOK, "密码格式有误")
 		return
 	}
 
 	if req.Password != req.ConfirmPassword {
-		ctx.String(http.StatusOK, "两次输入的密码不相同")
+		ctx.String(http.StatusOK, "两次输入不一致")
 		return
 	}
-
-	isPassword, err := c.passwordRegexExp.MatchString(req.Password)
-	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
-		return
-	}
-	if !isPassword {
-		ctx.String(http.StatusOK,
-			"密码必须包含数字、特殊字符，并且长度不能小于 8 位")
-		return
-	}
-	ctx.Header("Access-Control-Allow-Origin", "*")
-	ctx.String(http.StatusOK, "hello, 你在注册")
+	ctx.String(http.StatusOK, "注册成功")
+	//fmt.Printf()
 }
 
 // Login 用户登录接口
