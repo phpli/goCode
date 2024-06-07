@@ -12,11 +12,17 @@ type Product struct {
 }
 
 func main() {
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+		DryRun: true,
+	})
+	//db, err := gorm.Open(mysql.Open("test.db"), &gorm.Config{
+	//	DryRun: true,
+	//})
 	if err != nil {
 		panic("failed to connect database")
 	}
 
+	db = db.Debug()
 	// 迁移 schema
 	db.AutoMigrate(&Product{})
 
