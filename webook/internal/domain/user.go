@@ -1,7 +1,9 @@
 package domain
 
 type User struct {
-	Add Address
+	Id       int64
+	Email    string
+	Password string
 }
 
 type Address struct {
