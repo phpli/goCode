@@ -2,12 +2,15 @@ package web
 
 import (
 	"errors"
+	"fmt"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"strconv"
+	"time"
 )
 
 type UserHandler struct {
@@ -122,11 +125,54 @@ func (c *UserHandler) Login(ctx *gin.Context) {
 
 // Edit 用户编译信息
 func (c *UserHandler) Edit(ctx *gin.Context) {
-
+	type EditReq struct {
+		Birthday    string `form:"birthday" json:"birthday"`
+		Gender      int    `form:"gender" json:"gender"`
+		Description string `form:"description" json:"description"`
+		Nickname    string `form:"nickname" json:"nickname"`
+	}
+	var req EditReq
+	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+	session := sessions.Default(ctx)
+	userID := session.Get("userId")
+	id, err := strconv.ParseInt(fmt.Sprintf("%v", userID), 10, 64)
+	if err != nil {
+		ctx.String(http.StatusOK, "session is wrong")
+	}
+	birthday, err := time.Parse(time.DateOnly, req.Birthday)
+	if err != nil {
+		//ctx.String(http.StatusOK, "系统错误")
+		ctx.String(http.StatusOK, "生日格式不对")
+		return
+	}
+	err = c.svc.UpdateNonSensitiveInfo(ctx, domain.User{
+		Birthday:    birthday,
+		Gender:      req.Gender,
+		Description: req.Description,
+		Nickname:    req.Nickname,
+		Id:          id,
+	})
+	if err != nil {
+		ctx.String(http.StatusOK, "修改失败")
+		return
+	}
+	ctx.String(http.StatusOK, "登陆成功 %d", id)
 }
 
 // Profile 用户详情
 func (c *UserHandler) Profile(ctx *gin.Context) {
-
-	ctx.String(http.StatusOK, "这个登陆后的")
+	session := sessions.Default(ctx)
+	userID := session.Get("userId")
+	id, err := strconv.ParseInt(fmt.Sprintf("%v", userID), 10, 64)
+	if err != nil {
+		ctx.String(http.StatusOK, "session is wrong")
+	}
+	user, err := c.svc.Profile(ctx, id)
+	if errors.Is(err, service.ErrRecordNotFound) {
+		ctx.String(http.StatusOK, "没有找到用户信息")
+		return
+	}
+	ctx.String(http.StatusOK, "登陆成功 %d", user.Id)
 }

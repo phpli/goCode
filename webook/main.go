@@ -28,10 +28,10 @@ func initDB() *gorm.DB {
 	if err != nil {
 		panic(err)
 	}
-	err = dao.InitTable(db)
-	if err != nil {
-		panic(err)
-	}
+	//err = dao.InitTable(db)
+	//if err != nil {
+	//	panic(err)
+	//}
 	return db
 }
 

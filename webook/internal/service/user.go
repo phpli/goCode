@@ -12,6 +12,7 @@ import (
 var (
 	ErrUserDuplicateEmail    = repository.ErrUserDuplicateEmail
 	ErrInvalidUserOrPassword = errors.New("invalid user or password")
+	ErrRecordNotFound        = gorm.ErrRecordNotFound
 )
 
 type UserService struct {
@@ -45,4 +46,21 @@ func (svc *UserService) Login(ctx context.Context, email, password string) (doma
 	}
 
 	return domain.User{Id: u.Id, Email: u.Email}, nil
+}
+
+func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
+	u, err := svc.repo.FindById(ctx, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return domain.User{}, gorm.ErrRecordNotFound
+	}
+	if err != nil {
+		return domain.User{}, err
+	}
+	return domain.User{Id: u.Id, Email: u.Email, Birthday: u.Birthday, Gender: u.Gender, Description: u.Description}, nil
+}
+
+func (svc *UserService) UpdateNonSensitiveInfo(ctx context.Context,
+	user domain.User) error {
+	// UpdateNicknameAndXXAnd
+	return svc.repo.UpdateNonZeroFields(ctx, user)
 }
