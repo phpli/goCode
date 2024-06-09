@@ -117,6 +117,11 @@ func (c *UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 	session := sessions.Default(ctx)
+	session.Options(sessions.Options{
+		MaxAge: 30,
+		//HttpOnly: true,
+		//Secure: true,
+	})
 	session.Set("userId", u.Id)
 	session.Save()
 	ctx.String(http.StatusOK, "登陆成功")
@@ -175,4 +180,14 @@ func (c *UserHandler) Profile(ctx *gin.Context) {
 		return
 	}
 	ctx.String(http.StatusOK, "登陆成功 %d", user.Id)
+}
+
+func (c *UserHandler) SignOut(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+	//session.Delete("userId")
+	session.Options(sessions.Options{
+		MaxAge: -1,
+	})
+	session.Save()
+	ctx.String(http.StatusOK, "退出成功")
 }

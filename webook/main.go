@@ -8,7 +8,7 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/web/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -28,10 +28,10 @@ func initDB() *gorm.DB {
 	if err != nil {
 		panic(err)
 	}
-	//err = dao.InitTable(db)
-	//if err != nil {
-	//	panic(err)
-	//}
+	err = dao.InitTable(db)
+	if err != nil {
+		panic(err)
+	}
 	return db
 }
 
@@ -61,7 +61,12 @@ func initWebServer() *gin.Engine {
 		},
 		MaxAge: 12 * time.Hour,
 	}))
-	store := cookie.NewStore([]byte("secret"))
+	//store := cookie.NewStore([]byte("secret"))
+	store, err := redis.NewStore(16, "tcp", "localhost:16379", "", []byte("fb0e22c79ac75679e9881e6ba183b354"),
+		[]byte("988782dc147d58ff394f19a0d468d5b2"))
+	if err != nil {
+		panic(err)
+	}
 	server.Use(sessions.Sessions("webook", store))
 	server.Use(middleware.NewLoginMiddlewareBuilder().
 		IgnorePaths("/users/signup").
