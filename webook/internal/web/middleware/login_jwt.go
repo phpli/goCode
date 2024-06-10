@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"encoding/gob"
+	"gitee.com/geekbang/basic-go/webook/internal/web"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"net/http"
@@ -42,16 +43,20 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 		}
 		tokenStr := segs[1]
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		claims := &web.UserClaims{}
+
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("fb0e22c79ac75679e9881e6ba183b354"), nil
 		})
 		if err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		if token == nil || !token.Valid {
+		if token == nil || !token.Valid || claims.Uid == 0 {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+		//c.Set("userId", claims.Uid)
+		c.Set("claims", claims)
 	}
 }

@@ -45,7 +45,8 @@ func (c *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/signup", c.SignUp)
 	ug.POST("/login", c.LoginJWT)
 	ug.POST("/edit", c.Edit)
-	ug.GET("/profile", c.Profile)
+	//ug.GET("/profile", c.Profile)
+	ug.GET("/profile", c.ProfileJWT)
 }
 
 // SignUp 用户注册接口
@@ -150,13 +151,17 @@ func (c *UserHandler) LoginJWT(ctx *gin.Context) {
 	}
 	//使用jwt
 	//使用jwt登陆态
-	token := jwt.New(jwt.SigningMethodHS512)
+	claims := UserClaims{
+		Uid: u.Id,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	tokenStr, err := token.SignedString([]byte("fb0e22c79ac75679e9881e6ba183b354"))
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, "系统错误")
 		return
 	}
-	fmt.Println(u)
+
+	//fmt.Println(u)
 	ctx.Header("x-jwt-token", tokenStr)
 	ctx.String(http.StatusOK, "登陆成功")
 	return
@@ -224,4 +229,30 @@ func (c *UserHandler) SignOut(ctx *gin.Context) {
 	})
 	session.Save()
 	ctx.String(http.StatusOK, "退出成功")
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	Uid int64
+}
+
+// ProfileJWT 用户详情
+func (c *UserHandler) ProfileJWT(ctx *gin.Context) {
+	claim, ok := ctx.Get("claims")
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	claims, ok := claim.(*UserClaims)
+	if !ok {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	id := claims.Uid
+	_, err := c.svc.Profile(ctx, id)
+	if errors.Is(err, service.ErrRecordNotFound) {
+		ctx.String(http.StatusOK, "没有找到用户信息")
+		return
+	}
+	ctx.String(http.StatusOK, "登陆成功 %d", id)
 }
