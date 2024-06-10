@@ -152,7 +152,11 @@ func (c *UserHandler) LoginJWT(ctx *gin.Context) {
 	//使用jwt
 	//使用jwt登陆态
 	claims := UserClaims{
-		Uid: u.Id,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),
+		},
+		Uid:       u.Id,
+		UserAgent: ctx.Request.UserAgent(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 	tokenStr, err := token.SignedString([]byte("fb0e22c79ac75679e9881e6ba183b354"))
@@ -233,7 +237,8 @@ func (c *UserHandler) SignOut(ctx *gin.Context) {
 
 type UserClaims struct {
 	jwt.RegisteredClaims
-	Uid int64
+	Uid       int64
+	UserAgent string
 }
 
 // ProfileJWT 用户详情

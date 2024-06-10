@@ -5,6 +5,7 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/web"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -56,6 +57,23 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
+
+		if claims.UserAgent != c.Request.UserAgent() {
+			//严重问题
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		now := time.Now()
+		if claims.ExpiresAt.Sub(now) < time.Second*50 {
+			claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
+			tokenStr, err = token.SignedString([]byte("fb0e22c79ac75679e9881e6ba183b354"))
+			c.Header("x-jwt-token", tokenStr)
+			if err != nil {
+				// 这边不要中断，因为仅仅是过期时间没有刷新，但是用户是登录了的
+				log.Println(err)
+			}
+		}
+
 		//c.Set("userId", claims.Uid)
 		c.Set("claims", claims)
 	}
