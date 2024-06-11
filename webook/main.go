@@ -9,6 +9,8 @@ import (
 	ratelimit "gitee.com/geekbang/basic-go/webook/pkg/ginx/ratelimt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"net/http"
+
 	//"github.com/gin-contrib/sessions/redis"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
@@ -18,9 +20,16 @@ import (
 )
 
 func main() {
-	db := initDB()
-	server := initWebServer()
-	initUser(server, db)
+	//db := initDB()
+	//server := initWebServer()
+	//initUser(server, db)
+	//server.Run(":8080")
+
+	//练习部署用
+	server := gin.Default()
+	server.GET("/hello", func(c *gin.Context) {
+		c.String(http.StatusOK, "hello world k8s")
+	})
 	server.Run(":8080")
 }
 
