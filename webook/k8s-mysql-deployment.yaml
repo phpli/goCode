@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webook-mysql
+  labels:
+    app: webook-mysql
+spec:
+  replicas: 1 # 和pv pvc的读写方式有关
+  selector:
+    matchLabels:
+      app: webook-mysql
+  template:
+    metadata:
+      name: webook-mysql
+      labels:
+        app: webook-mysql
+    spec:
+      containers:
+        - name: webook-mysql
+          image: mysql:8.0.34
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: root
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            #对应到mysql的数据存储位置
+            - mountPath: /var/lib/mysql
+              #我pod里有那么多volumes有很多，我要用下面这个
+              name: webook-mysql-storage
+          ports:
+            - containerPort: 3306
+#        - name: webook-hadoop-storage
+      restartPolicy: Always
+      # 我整个pod有哪些
+      #数据持久化
+      volumes:
+        - name: webook-mysql-storage
+          persistentVolumeClaim:
+            claimName: webook-mysql-claim
+#        - name: webook-hadoop-storage
+#          persistentVolumeClaim:
+#            claimName: webook-hadoop-claim
