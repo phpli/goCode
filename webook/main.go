@@ -3,14 +3,13 @@ package main
 import (
 	"gitee.com/geekbang/basic-go/webook/config"
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
+	cache2 "gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
 	"gitee.com/geekbang/basic-go/webook/internal/web"
 	"gitee.com/geekbang/basic-go/webook/internal/web/middleware"
-	ratelimit "gitee.com/geekbang/basic-go/webook/pkg/ginx/ratelimt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	//"github.com/gin-contrib/sessions/redis"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -20,8 +19,12 @@ import (
 
 func main() {
 	db := initDB()
-	server := initWebServer()
-	initUser(server, db)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+
+	server := initWebServer(redisClient)
+	initUser(server, db, redisClient)
 	server.Run(":8080")
 
 	//练习部署用
@@ -44,15 +47,16 @@ func initDB() *gorm.DB {
 	return db
 }
 
-func initUser(server *gin.Engine, db *gorm.DB) {
+func initUser(server *gin.Engine, db *gorm.DB, redis redis.Cmdable) {
 	ud := dao.NewUserDAO(db)
-	ur := repository.NewUserRepository(ud)
+	cache := cache2.NewUserCache(redis)
+	ur := repository.NewUserRepository(ud, cache)
 	us := service.NewUserService(ur)
 	c := web.NewUserHandler(us)
 	c.RegisterRoutes(server)
 }
 
-func initWebServer() *gin.Engine {
+func initWebServer(redis *redis.Client) *gin.Engine {
 	server := gin.Default()
 	server.Use(cors.New(cors.Config{
 		//AllowOrigins: []string{"http://localhost"},
@@ -71,10 +75,10 @@ func initWebServer() *gin.Engine {
 		},
 		MaxAge: 12 * time.Hour,
 	}))
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: config.Config.Redis.Addr,
-	})
-	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
+	//redisClient := redis.NewClient(&redis.Options{
+	//	Addr: config.Config.Redis.Addr,
+	//})
+	//server.Use(ratelimit.NewBuilder(redis, time.Minute, 100).Build())
 	//store := cookie.NewStore([]byte("secret"))
 	//store, err := redis.NewStore(16, "tcp", "localhost:16379", "", []byte("fb0e22c79ac75679e9881e6ba183b354"),
 	//	[]byte("988782dc147d58ff394f19a0d468d5b2"))
