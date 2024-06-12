@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gitee.com/geekbang/basic-go/webook/config"
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
@@ -9,8 +10,6 @@ import (
 	ratelimit "gitee.com/geekbang/basic-go/webook/pkg/ginx/ratelimt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"net/http"
-
 	//"github.com/gin-contrib/sessions/redis"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
@@ -20,21 +19,21 @@ import (
 )
 
 func main() {
-	//db := initDB()
-	//server := initWebServer()
-	//initUser(server, db)
-	//server.Run(":8080")
+	db := initDB()
+	server := initWebServer()
+	initUser(server, db)
+	server.Run(":8080")
 
 	//练习部署用
-	server := gin.Default()
-	server.GET("/hello", func(c *gin.Context) {
-		c.String(http.StatusOK, "hello world k8s")
-	})
-	server.Run(":8080")
+	//server := gin.Default()
+	//server.GET("/hello", func(c *gin.Context) {
+	//	c.String(http.StatusOK, "hello world k8s")
+	//})
+	//server.Run(":8080")
 }
 
 func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:root@tcp(localhost:13316)/webook"))
+	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
 	if err != nil {
 		panic(err)
 	}
@@ -73,7 +72,7 @@ func initWebServer() *gin.Engine {
 		MaxAge: 12 * time.Hour,
 	}))
 	redisClient := redis.NewClient(&redis.Options{
-		Addr: "localhost:16379",
+		Addr: config.Config.Redis.Addr,
 	})
 	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
 	//store := cookie.NewStore([]byte("secret"))
