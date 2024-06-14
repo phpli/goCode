@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
@@ -9,7 +10,8 @@ import (
 )
 
 var (
-	ErrUserDuplicateEmail = dao.ErrUserDuplicateEmail
+	ErrUserDuplicate = dao.ErrUserDuplicate
+	ErrUserNotFound  = dao.ErrUserNotFound
 )
 
 type UserRepository struct {
@@ -53,18 +55,19 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (domain.
 	if err != nil {
 		return domain.User{}, err
 	}
-	return domain.User{
-		Id:       u.Id,
-		Email:    u.Email,
-		Password: u.Password,
-	}, nil
+	return r.toDomain(u), nil
+}
+
+func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (domain.User, error) {
+	u, err := r.dao.FindByPhone(ctx, phone)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return r.toDomain(u), nil
 }
 
 func (r *UserRepository) Create(ctx context.Context, u domain.User) error {
-	return r.dao.Insert(ctx, dao.User{
-		Email:    u.Email,
-		Password: u.Password,
-	})
+	return r.dao.Insert(ctx, r.toEntity(u))
 }
 
 //func (r *UserRepository) Update(ctx context.Context, u domain.User) error {
@@ -84,8 +87,15 @@ func (r *UserRepository) UpdateNonZeroFields(ctx context.Context,
 
 func (r *UserRepository) toEntity(u domain.User) dao.User {
 	return dao.User{
-		Id:          u.Id,
-		Email:       u.Email,
+		Id: u.Id,
+		Email: sql.NullString{
+			String: u.Email,
+			Valid:  u.Email != "",
+		},
+		Phone: sql.NullString{
+			String: u.Phone,
+			Valid:  u.Phone != "",
+		},
 		Password:    u.Password,
 		Birthday:    u.Birthday.UnixMilli(),
 		Description: u.Description,
@@ -97,7 +107,8 @@ func (r *UserRepository) toEntity(u domain.User) dao.User {
 func (r *UserRepository) toDomain(u dao.User) domain.User {
 	return domain.User{
 		Id:          u.Id,
-		Email:       u.Email,
+		Email:       u.Email.String,
+		Phone:       u.Phone.String,
 		Password:    u.Password,
 		Description: u.Description,
 		Nickname:    u.Nickname,

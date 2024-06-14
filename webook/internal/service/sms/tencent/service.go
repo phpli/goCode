@@ -24,6 +24,7 @@ func NewService(client *sms.Client, appId string, signName string) *Service {
 
 func (s *Service) Send(ctx context.Context, tpl string, args []string, numbers ...string) error {
 	req := sms.NewSendSmsRequest()
+	req.SetContext(ctx)
 	req.SmsSdkAppId = s.appId
 	req.SignName = s.signName
 	req.TemplateId = ekit.ToPtr[string](tpl)

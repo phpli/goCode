@@ -96,6 +96,7 @@ func initWebServer(redis *redis.Client) *gin.Engine {
 		IgnorePaths("/users/signup").
 		IgnorePaths("/users/login").
 		IgnorePaths("/users/login_sms/code/send").
+		IgnorePaths("/users/login_sms").
 		Build())
 	return server
 }

@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	ErrUserDuplicateEmail    = repository.ErrUserDuplicateEmail
+	ErrUserDuplicate         = repository.ErrUserDuplicate
 	ErrInvalidUserOrPassword = errors.New("invalid user or password")
 	ErrRecordNotFound        = gorm.ErrRecordNotFound
 )
@@ -63,4 +63,19 @@ func (svc *UserService) UpdateNonSensitiveInfo(ctx context.Context,
 	user domain.User) error {
 	// UpdateNicknameAndXXAnd
 	return svc.repo.UpdateNonZeroFields(ctx, user)
+}
+
+func (svc *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+	u, err := svc.repo.FindByPhone(ctx, phone)
+	if !errors.Is(err, repository.ErrUserNotFound) {
+		return u, err
+	}
+	err = svc.repo.Create(ctx, domain.User{
+		Phone: phone,
+	})
+	if err != nil {
+		return u, err
+	}
+	// 这里会有主从延迟的坑
+	return svc.repo.FindByPhone(ctx, phone)
 }

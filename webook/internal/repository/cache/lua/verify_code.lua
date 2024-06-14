@@ -4,8 +4,8 @@ local expectedCode = ARGV[1]
 local cntKey = key..":cnt"
 local code = redis.call("get",key)
 --转成一个数字
-local cnt = tonumber(redis.call("get",cntKey))
-if cnt <= 0 then
+local cnt = tonumber(redis.call("get",cntKey)) or 0
+if cnt == nil or cnt <= 0 then
     -- 说明用户一直在输错
     return -1
 elseif expectedCode == code then

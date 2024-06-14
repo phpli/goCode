@@ -9,6 +9,10 @@ import (
 )
 
 var codeTplId = "18888"
+var (
+	ErrCodeVerifyTooManyTimes = repository.ErrCodeVerifyTooManyTimes
+	ErrCodeSendTooMany        = repository.ErrCodeSendTooMany
+)
 
 type CodeService struct {
 	repo   *repository.CodeRepository
@@ -27,7 +31,7 @@ func (svc *CodeService) Send(ctx context.Context, biz string, phone string) erro
 	//塞进redis
 	//发出
 	code := svc.generateCode()
-	err := svc.repo.Store(ctx, code, biz, phone)
+	err := svc.repo.Store(ctx, biz, phone, code)
 	if err != nil {
 		return err
 	}
@@ -44,7 +48,7 @@ func (svc *CodeService) Verify(ctx context.Context, biz string, phone string, in
 
 func (svc *CodeService) generateCode() string {
 	num := rand.Intn(1000000)
-	return fmt.Sprintf("%6d", num)
+	return fmt.Sprintf("%06d", num)
 }
 
 func (svc *CodeService) VerifyV1(ctx context.Context, biz string, phone string, inputCode string) error {
