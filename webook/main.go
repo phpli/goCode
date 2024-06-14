@@ -9,6 +9,7 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/service/mermory"
 	"gitee.com/geekbang/basic-go/webook/internal/web"
 	"gitee.com/geekbang/basic-go/webook/internal/web/middleware"
+	ratelimit "gitee.com/geekbang/basic-go/webook/pkg/ginx/ratelimt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -20,11 +21,10 @@ import (
 
 func main() {
 	db := initDB()
-	redisClient := redis.NewClient(&redis.Options{
-		Addr: config.Config.Redis.Addr,
-	})
+	redisClient := initRedis()
 
 	server := initWebServer(redisClient)
+
 	initUser(server, db, redisClient)
 	server.Run(":8080")
 
@@ -34,6 +34,13 @@ func main() {
 	//	c.String(http.StatusOK, "hello world k8s")
 	//})
 	//server.Run(":8080")
+}
+
+func initRedis() *redis.Client {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+	return redisClient
 }
 
 func initDB() *gorm.DB {
@@ -83,7 +90,7 @@ func initWebServer(redis *redis.Client) *gin.Engine {
 	//redisClient := redis.NewClient(&redis.Options{
 	//	Addr: config.Config.Redis.Addr,
 	//})
-	//server.Use(ratelimit.NewBuilder(redis, time.Minute, 100).Build())
+	server.Use(ratelimit.NewBuilder(redis, time.Minute, 100).Build())
 	//store := cookie.NewStore([]byte("secret"))
 	//store, err := redis.NewStore(16, "tcp", "localhost:16379", "", []byte("fb0e22c79ac75679e9881e6ba183b354"),
 	//	[]byte("988782dc147d58ff394f19a0d468d5b2"))
