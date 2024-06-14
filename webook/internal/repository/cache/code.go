@@ -20,10 +20,10 @@ var luaSetCode string
 var luaVerifyCode string
 
 type CodeCache struct {
-	client *redis.Client
+	client redis.Cmdable
 }
 
-func NewCodeCache(client *redis.Client) *CodeCache {
+func NewCodeCache(client redis.Cmdable) *CodeCache {
 	return &CodeCache{
 		client: client,
 	}

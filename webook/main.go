@@ -3,9 +3,10 @@ package main
 import (
 	"gitee.com/geekbang/basic-go/webook/config"
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
-	cache2 "gitee.com/geekbang/basic-go/webook/internal/repository/cache"
+	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
+	"gitee.com/geekbang/basic-go/webook/internal/service/mermory"
 	"gitee.com/geekbang/basic-go/webook/internal/web"
 	"gitee.com/geekbang/basic-go/webook/internal/web/middleware"
 	"github.com/gin-contrib/cors"
@@ -47,12 +48,16 @@ func initDB() *gorm.DB {
 	return db
 }
 
-func initUser(server *gin.Engine, db *gorm.DB, redis redis.Cmdable) {
+func initUser(server *gin.Engine, db *gorm.DB, rdb redis.Cmdable) {
 	ud := dao.NewUserDAO(db)
-	cache := cache2.NewUserCache(redis)
-	ur := repository.NewUserRepository(ud, cache)
-	us := service.NewUserService(ur)
-	c := web.NewUserHandler(us)
+	userCache := cache.NewUserCache(rdb)
+	repo := repository.NewUserRepository(ud, userCache)
+	us := service.NewUserService(repo)
+	codeCache := cache.NewCodeCache(rdb)
+	codePepo := repository.NewCodeRepository(codeCache)
+	smsSvc := mermory.NewService()
+	codeSvc := service.NewCodeService(codePepo, smsSvc)
+	c := web.NewUserHandler(us, codeSvc)
 	c.RegisterRoutes(server)
 }
 
@@ -87,7 +92,11 @@ func initWebServer(redis *redis.Client) *gin.Engine {
 	//}
 	//server.Use(sessions.Sessions("webook", store))
 	//server.Use(middleware.NewLoginMiddlewareBuilder().IgnorePaths("/users/signup").IgnorePaths("/users/login").Build())
-	server.Use(middleware.NewLoginJWTMiddlewareBuilder().IgnorePaths("/users/signup").IgnorePaths("/users/login").Build())
+	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
+		IgnorePaths("/users/signup").
+		IgnorePaths("/users/login").
+		IgnorePaths("/users/login_sms/code/send").
+		Build())
 	return server
 }
 
