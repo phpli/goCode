@@ -15,15 +15,24 @@ var (
 	ErrRecordNotFound        = gorm.ErrRecordNotFound
 )
 
-type UserService struct {
-	repo *repository.UserRepository
+type UserService interface {
+	SignUp(ctx context.Context, u domain.User) error
+	Login(ctx context.Context, email, password string) (domain.User, error)
+	Profile(ctx context.Context, id int64) (domain.User, error)
+	UpdateNonSensitiveInfo(ctx context.Context,
+		user domain.User) error
+	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
 }
 
-func NewUserService(repo *repository.UserRepository) *UserService {
-	return &UserService{repo: repo}
+type userService struct {
+	repo repository.UserRepository
 }
 
-func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
+func NewUserService(repo repository.UserRepository) UserService {
+	return &userService{repo: repo}
+}
+
+func (svc *userService) SignUp(ctx context.Context, u domain.User) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -32,7 +41,7 @@ func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
 	return svc.repo.Create(ctx, u)
 }
 
-func (svc *UserService) Login(ctx context.Context, email, password string) (domain.User, error) {
+func (svc *userService) Login(ctx context.Context, email, password string) (domain.User, error) {
 	u, err := svc.repo.FindByEmail(ctx, email)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return domain.User{}, ErrInvalidUserOrPassword
@@ -48,7 +57,7 @@ func (svc *UserService) Login(ctx context.Context, email, password string) (doma
 	return domain.User{Id: u.Id, Email: u.Email}, nil
 }
 
-func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
+func (svc *userService) Profile(ctx context.Context, id int64) (domain.User, error) {
 	u, err := svc.repo.FindById(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return domain.User{}, gorm.ErrRecordNotFound
@@ -59,13 +68,13 @@ func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, err
 	return domain.User{Id: u.Id, Email: u.Email, Birthday: u.Birthday, Gender: u.Gender, Description: u.Description}, nil
 }
 
-func (svc *UserService) UpdateNonSensitiveInfo(ctx context.Context,
+func (svc *userService) UpdateNonSensitiveInfo(ctx context.Context,
 	user domain.User) error {
 	// UpdateNicknameAndXXAnd
 	return svc.repo.UpdateNonZeroFields(ctx, user)
 }
 
-func (svc *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
 	u, err := svc.repo.FindByPhone(ctx, phone)
 	if !errors.Is(err, repository.ErrUserNotFound) {
 		return u, err

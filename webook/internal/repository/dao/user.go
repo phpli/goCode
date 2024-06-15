@@ -14,17 +14,26 @@ var (
 	ErrUserNotFound  = gorm.ErrRecordNotFound
 )
 
-type UserDAO struct {
+type UserDAO interface {
+	Insert(ctx context.Context, u User) error
+	Update(ctx context.Context, u User) error
+	FindByEmail(ctx context.Context, email string) (User, error)
+	FindByPhone(ctx context.Context, phone string) (User, error)
+	FindById(ctx context.Context, id int64) (User, error)
+	UpdateById(ctx context.Context, entity User) error
+}
+
+type GORMUserDAO struct {
 	db *gorm.DB
 }
 
-func NewUserDAO(db *gorm.DB) *UserDAO {
-	return &UserDAO{
-		db,
+func NewUserDAO(db *gorm.DB) UserDAO {
+	return &GORMUserDAO{
+		db: db,
 	}
 }
 
-func (dao *UserDAO) Insert(ctx context.Context, u User) error {
+func (dao *GORMUserDAO) Insert(ctx context.Context, u User) error {
 	now := time.Now().UnixMilli()
 	u.Ctime = now
 	u.Utime = now
@@ -39,7 +48,7 @@ func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 	return err
 }
 
-func (dao *UserDAO) Update(ctx context.Context, u User) error {
+func (dao *GORMUserDAO) Update(ctx context.Context, u User) error {
 	now := time.Now().UnixMilli()
 	u.Utime = now
 	err := dao.db.WithContext(ctx).Save(&u).Error
@@ -59,28 +68,26 @@ type User struct {
 	Description string
 }
 
-func (dao *UserDAO) FindByEmail(ctx context.Context, email string) (User, error) {
+func (dao *GORMUserDAO) FindByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).First(&u, "email = ?", email).Error
-	//err := dao.db.WithContext(ctx).Where("email=?",email).First(&u).Error
 	return u, err
 }
 
-func (dao *UserDAO) FindByPhone(ctx context.Context, phone string) (User, error) {
+func (dao *GORMUserDAO) FindByPhone(ctx context.Context, phone string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).First(&u, "phone = ?", phone).Error
-	//err := dao.db.WithContext(ctx).Where("email=?",email).First(&u).Error
 	return u, err
 }
 
-func (dao *UserDAO) FindById(ctx context.Context, id int64) (User, error) {
+func (dao *GORMUserDAO) FindById(ctx context.Context, id int64) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).First(&u, "id = ?", id).Error
 	//err := dao.db.WithContext(ctx).Where("email=?",email).First(&u).Error
 	return u, err
 }
 
-func (dao *UserDAO) UpdateById(ctx context.Context, entity User) error {
+func (dao *GORMUserDAO) UpdateById(ctx context.Context, entity User) error {
 
 	// 这种写法依赖于 GORM 的零值和主键更新特性
 	// Update 非零值 WHERE id = ?
