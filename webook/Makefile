@@ -1,4 +1,5 @@
 .PHONY:docker
+#只有Makefile
 docker:
 	@rm -f webook || true
 	@GOOS=linux GOARCH=arm go build -tags=k8s -o webook .
