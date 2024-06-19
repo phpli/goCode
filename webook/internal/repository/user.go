@@ -50,6 +50,10 @@ func (r *CachedUserRepository) FindById(ctx context.Context, id int64) (domain.U
 		return domain.User{}, err
 	}
 	u = r.toDomain(ue)
+	//_ = r.cache.Set(ctx, u)
+	//if err != nil {
+	//	//打印日志
+	//}
 	go func() {
 		err = r.cache.Set(ctx, u)
 		if err != nil {

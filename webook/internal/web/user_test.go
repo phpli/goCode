@@ -155,3 +155,7 @@ func TestMock(t *testing.T) {
 	})
 	t.Log(err)
 }
+
+func TestUserHandler_loginSms(t *testing.T) {
+
+}

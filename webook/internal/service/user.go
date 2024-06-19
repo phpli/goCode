@@ -54,7 +54,7 @@ func (svc *userService) Login(ctx context.Context, email, password string) (doma
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
 
-	return domain.User{Id: u.Id, Email: u.Email}, nil
+	return u, nil
 }
 
 func (svc *userService) Profile(ctx context.Context, id int64) (domain.User, error) {

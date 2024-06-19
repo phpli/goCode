@@ -11,6 +11,7 @@ type User struct {
 	Birthday    time.Time
 	Gender      int
 	Description string
+	Ctime       time.Time
 }
 
 type Address struct {
