@@ -3,7 +3,6 @@ package ioc
 import (
 	"gitee.com/geekbang/basic-go/webook/internal/web"
 	"gitee.com/geekbang/basic-go/webook/internal/web/middleware"
-	ratelimit "gitee.com/geekbang/basic-go/webook/pkg/ginx/ratelimt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -11,10 +10,11 @@ import (
 	"time"
 )
 
-func InitWebServer(mdls []gin.HandlerFunc, hdl *web.UserHandler) *gin.Engine {
+func InitWebServer(mdls []gin.HandlerFunc, hdl *web.UserHandler, oauth2WeChatHdl *web.OAuth2WeChatHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(mdls...)
 	hdl.RegisterRoutes(server)
+	oauth2WeChatHdl.RegisterRoutes(server)
 	return server
 }
 
@@ -24,8 +24,9 @@ func InitMiddlewares(redis redis.Cmdable) []gin.HandlerFunc {
 		middleware.NewLoginJWTMiddlewareBuilder().IgnorePaths("/users/signup").
 			IgnorePaths("/users/login").
 			IgnorePaths("/users/login_sms/code/send").
+			IgnorePaths("/oauth2/wechat/authrul").
 			IgnorePaths("/users/login_sms").Build(),
-		ratelimit.NewBuilder(redis, time.Minute, 100).Build(),
+		//ratelimit.NewBuilder(redis, time.Minute, 100).Build(),
 	}
 }
 

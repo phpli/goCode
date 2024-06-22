@@ -19,6 +19,7 @@ type UserDAO interface {
 	Update(ctx context.Context, u User) error
 	FindByEmail(ctx context.Context, email string) (User, error)
 	FindByPhone(ctx context.Context, phone string) (User, error)
+	FindByWechat(ctx context.Context, openID string) (User, error)
 	FindById(ctx context.Context, id int64) (User, error)
 	UpdateById(ctx context.Context, entity User) error
 }
@@ -56,16 +57,18 @@ func (dao *GORMUserDAO) Update(ctx context.Context, u User) error {
 }
 
 type User struct {
-	Id          int64          `gorm:"primaryKey,autoIncrement"`
-	Email       sql.NullString `gorm:"type:varchar(255);unique"`
-	Nickname    string         `gorm:"type:varchar(255)"`
-	Phone       sql.NullString `gorm:"type:varchar(255);unique"`
-	Password    string
-	Ctime       int64
-	Utime       int64
-	Birthday    int64
-	Gender      int
-	Description string
+	Id            int64          `gorm:"primaryKey,autoIncrement"`
+	Email         sql.NullString `gorm:"type:varchar(255);unique"`
+	Nickname      string         `gorm:"type:varchar(255)"`
+	Phone         sql.NullString `gorm:"type:varchar(255);unique"`
+	WechatUnionID sql.NullString
+	WechatOpenID  sql.NullString `gorm:"type:varchar(255);unique"`
+	Password      string
+	Ctime         int64
+	Utime         int64
+	Birthday      int64
+	Gender        int
+	Description   string
 }
 
 func (dao *GORMUserDAO) FindByEmail(ctx context.Context, email string) (User, error) {
@@ -77,6 +80,12 @@ func (dao *GORMUserDAO) FindByEmail(ctx context.Context, email string) (User, er
 func (dao *GORMUserDAO) FindByPhone(ctx context.Context, phone string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).First(&u, "phone = ?", phone).Error
+	return u, err
+}
+
+func (dao *GORMUserDAO) FindByWechat(ctx context.Context, openID string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).First(&u, "wechat_open_id = ?", openID).Error
 	return u, err
 }
 

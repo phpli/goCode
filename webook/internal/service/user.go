@@ -22,6 +22,7 @@ type UserService interface {
 	UpdateNonSensitiveInfo(ctx context.Context,
 		user domain.User) error
 	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
+	FindOrCreateByWechat(ctx context.Context, wechatInfo domain.WechatInfo) (domain.User, error)
 }
 
 type userService struct {
@@ -87,4 +88,20 @@ func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.
 	}
 	// 这里会有主从延迟的坑
 	return svc.repo.FindByPhone(ctx, phone)
+}
+
+func (svc *userService) FindOrCreateByWechat(ctx context.Context, wechatInfo domain.WechatInfo) (domain.User, error) {
+	u, err := svc.repo.FindByWechat(ctx, wechatInfo.OpenID)
+	if !errors.Is(err, repository.ErrUserNotFound) {
+		return u, err
+	}
+	u = domain.User{
+		WechatInfo: wechatInfo,
+	}
+	err = svc.repo.Create(ctx, u)
+	if err != nil {
+		return u, err
+	}
+	// 这里会有主从延迟的坑
+	return svc.repo.FindByWechat(ctx, wechatInfo.OpenID)
 }

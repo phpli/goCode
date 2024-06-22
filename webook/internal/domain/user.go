@@ -12,7 +12,9 @@ type User struct {
 	Gender      int
 	Description string
 	Ctime       time.Time
+	//不要组合，以后可能有叮叮info
+	WechatInfo WechatInfo
 }
 
-type Address struct {
-}
+//type Address struct {
+//}

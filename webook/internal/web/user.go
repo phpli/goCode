@@ -24,6 +24,7 @@ type UserHandler struct {
 	codeSvc     service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
+	jwtHandler
 }
 
 func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
@@ -313,12 +314,6 @@ func (c *UserHandler) SignOut(ctx *gin.Context) {
 	})
 	session.Save()
 	ctx.String(http.StatusOK, "退出成功")
-}
-
-type UserClaims struct {
-	jwt.RegisteredClaims
-	Uid       int64
-	UserAgent string
 }
 
 // ProfileJWT 用户详情
