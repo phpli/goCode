@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
+	ijwt "gitee.com/geekbang/basic-go/webook/internal/web/jwt"
 	regexp "github.com/dlclark/regexp2"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 	"strconv"
 	"time"
@@ -24,10 +26,11 @@ type UserHandler struct {
 	codeSvc     service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
-	jwtHandler
+	ijwt.Handler
+	cmd redis.Cmdable
 }
 
-func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService, cmd redis.Cmdable, jwtHdl ijwt.Handler) *UserHandler {
 	const (
 		emailRegexPattern = "^\\w+([-+.]\\w+)*@\\w+([-.]\\w+)*\\.\\w+([-.]\\w+)*$"
 		// 和上面比起来，用 ` 看起来就比较清爽
@@ -38,6 +41,8 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 		codeSvc:     codeSvc,
 		emailExp:    regexp.MustCompile(emailRegexPattern, regexp.None), //预编译
 		passwordExp: regexp.MustCompile(passwordRegexPattern, regexp.None),
+		Handler:     jwtHdl,
+		cmd:         cmd,
 	}
 }
 
@@ -52,11 +57,60 @@ func (c *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
 	ug.POST("/signup", c.SignUp)
 	ug.POST("/login", c.LoginJWT)
+	ug.POST("/logout", c.LogoutJWT)
 	ug.POST("/edit", c.Edit)
 	//ug.GET("/profile", c.Profile)
 	ug.GET("/profile", c.ProfileJWT)
 	ug.POST("/login_sms", c.loginSms)
 	ug.POST("/login_sms/code/send", c.SendLoginSMSCode)
+	ug.POST("/refresh_token", c.RefreshToken)
+}
+
+func (c *UserHandler) LogoutJWT(ctx *gin.Context) {
+	err := c.ClearToken(ctx)
+	if err != nil {
+		//要么redis有问题，要不已经退出登陆
+		ctx.JSON(http.StatusOK, Result{
+			Msg:  "退出登陆失败",
+			Code: 5,
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "退出成功",
+	})
+}
+
+// RefreshToken 可以同时刷新长短 token，用 redis 来记录是否有效，即 refresh_token 是一次性的
+// 参考登录校验部分，比较 User-Agent 来增强安全性
+func (c *UserHandler) RefreshToken(ctx *gin.Context) {
+
+	refreshToken := c.ExtractToken(ctx)
+	var rc ijwt.RefreshClaims
+	token, err := jwt.ParseWithClaims(refreshToken, &rc, func(*jwt.Token) (interface{}, error) {
+		return ijwt.Rtkey, nil
+	})
+	if err != nil || !token.Valid {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	err = c.CheckSession(ctx, rc.Ssid)
+	////要是用redis session，没必要用这些
+	//cnt, err := c.cmd.Exists(ctx, fmt.Sprintf("users:ssis:%s", rc.Ssid)).Result()
+	if err != nil {
+		//要么redis有问题，要不已经退出登陆
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
+	err = c.SetJWTToken(ctx, rc.Uid, rc.Ssid)
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "刷新成功",
+	})
 }
 
 func (c *UserHandler) loginSms(ctx *gin.Context) {
@@ -86,10 +140,11 @@ func (c *UserHandler) loginSms(ctx *gin.Context) {
 	//使用jwt
 	//使用jwt登陆态
 	user, err := c.svc.FindOrCreate(ctx, req.Phone)
-	if err = c.setJWTToken(ctx, user.Id); err != nil {
+	if err = c.SetLoginToken(ctx, user.Id); err != nil {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
+
 	ctx.JSON(http.StatusOK, Result{
 		Code: 2,
 		Msg:  "验证成功",
@@ -225,32 +280,33 @@ func (c *UserHandler) LoginJWT(ctx *gin.Context) {
 	}
 	//使用jwt
 	//使用jwt登陆态
-	if err = c.setJWTToken(ctx, u.Id); err != nil {
+	if err = c.SetLoginToken(ctx, u.Id); err != nil {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
+
 	ctx.String(http.StatusOK, "登陆成功")
 	return
 }
 
-func (c *UserHandler) setJWTToken(ctx *gin.Context, uid int64) error {
-	claims := UserClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
-		},
-		Uid:       uid,
-		UserAgent: ctx.Request.UserAgent(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
-	tokenStr, err := token.SignedString([]byte("fb0e22c79ac75679e9881e6ba183b354"))
-	if err != nil {
-		return err
-	}
-
-	//fmt.Println(u)
-	ctx.Header("x-jwt-token", tokenStr)
-	return nil
-}
+//func (c *UserHandler) setJWTToken(ctx *gin.Context, uid int64) error {
+//	claims := UserClaims{
+//		RegisteredClaims: jwt.RegisteredClaims{
+//			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
+//		},
+//		Uid:       uid,
+//		UserAgent: ctx.Request.UserAgent(),
+//	}
+//	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+//	tokenStr, err := token.SignedString([]byte("fb0e22c79ac75679e9881e6ba183b354"))
+//	if err != nil {
+//		return err
+//	}
+//
+//	//fmt.Println(u)
+//	ctx.Header("x-jwt-token", tokenStr)
+//	return nil
+//}
 
 // Edit 用户编译信息
 func (c *UserHandler) Edit(ctx *gin.Context) {
@@ -323,7 +379,7 @@ func (c *UserHandler) ProfileJWT(ctx *gin.Context) {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
-	claims, ok := claim.(*UserClaims)
+	claims, ok := claim.(*ijwt.UserClaims)
 	if !ok {
 		ctx.String(http.StatusOK, "系统错误")
 		return
@@ -335,4 +391,17 @@ func (c *UserHandler) ProfileJWT(ctx *gin.Context) {
 		return
 	}
 	ctx.String(http.StatusOK, "登陆成功 %d", id)
+}
+
+func (u *UserHandler) SessionLogout(ctx *gin.Context) {
+	sess := sessions.Default(ctx)
+	// 我可以随便设置值了
+	// 你要放在 session 里面的值
+	sess.Options(sessions.Options{
+		//Secure: true,
+		//HttpOnly: true,
+		MaxAge: -1,
+	})
+	sess.Save()
+	ctx.String(http.StatusOK, "退出登录成功")
 }

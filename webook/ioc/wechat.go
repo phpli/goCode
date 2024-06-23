@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"gitee.com/geekbang/basic-go/webook/internal/service/oauth2/wechat"
+	"gitee.com/geekbang/basic-go/webook/internal/web"
 )
 
 func InitWechatService() wechat.Service {
@@ -22,3 +23,9 @@ func InitWechatService() wechat.Service {
 //		Secure: false,
 //	}
 //}
+
+func NewWechatHandlerConfig() web.WechatHandlerConfig {
+	return web.WechatHandlerConfig{
+		Secure: false,
+	}
+}

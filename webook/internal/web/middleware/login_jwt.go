@@ -2,21 +2,24 @@ package middleware
 
 import (
 	"encoding/gob"
-	"gitee.com/geekbang/basic-go/webook/internal/web"
+	ijwt "gitee.com/geekbang/basic-go/webook/internal/web/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"log"
+	"github.com/redis/go-redis/v9"
 	"net/http"
-	"strings"
 	"time"
 )
 
 type LoginJWTMiddlewareBuilder struct {
 	paths []string
+	cmd   redis.Cmdable
+	ijwt.Handler
 }
 
-func NewLoginJWTMiddlewareBuilder() *LoginJWTMiddlewareBuilder {
-	return &LoginJWTMiddlewareBuilder{}
+func NewLoginJWTMiddlewareBuilder(jwtHdl ijwt.Handler) *LoginJWTMiddlewareBuilder {
+	return &LoginJWTMiddlewareBuilder{
+		Handler: jwtHdl,
+	}
 }
 
 func (l *LoginJWTMiddlewareBuilder) IgnorePaths(paths string) *LoginJWTMiddlewareBuilder {
@@ -33,18 +36,8 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 				return
 			}
 		}
-		tokenHeard := c.Request.Header.Get("Authorization")
-		if tokenHeard == "" {
-			c.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-		//tokenStr := strings.SplitN(tokenHeard, " ", 2)
-		segs := strings.Split(tokenHeard, " ")
-		if len(segs) != 2 {
-			c.AbortWithStatus(http.StatusUnauthorized)
-		}
-		tokenStr := segs[1]
-		claims := &web.UserClaims{}
+		tokenStr := l.ExtractToken(c)
+		claims := &ijwt.UserClaims{}
 
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("fb0e22c79ac75679e9881e6ba183b354"), nil
@@ -63,16 +56,23 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		now := time.Now()
-		if claims.ExpiresAt.Sub(now) < time.Second*50 {
-			claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
-			tokenStr, err = token.SignedString([]byte("fb0e22c79ac75679e9881e6ba183b354"))
-			c.Header("x-jwt-token", tokenStr)
-			if err != nil {
-				// 这边不要中断，因为仅仅是过期时间没有刷新，但是用户是登录了的
-				log.Println(err)
-			}
+		err = l.CheckSession(c, claims.Ssid)
+		if err != nil {
+			//要么redis有问题，要不已经退出登陆
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
 		}
+		//已经用了长短token
+		//now := time.Now()
+		//if claims.ExpiresAt.Sub(now) < time.Second*50 {
+		//	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
+		//	tokenStr, err = token.SignedString([]byte("fb0e22c79ac75679e9881e6ba183b354"))
+		//	c.Header("x-jwt-token", tokenStr)
+		//	if err != nil {
+		//		// 这边不要中断，因为仅仅是过期时间没有刷新，但是用户是登录了的
+		//		log.Println(err)
+		//	}
+		//}
 
 		//c.Set("userId", claims.Uid)
 		c.Set("claims", claims)
