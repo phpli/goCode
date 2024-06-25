@@ -1,5 +1,14 @@
 package main
 
+import (
+	"bytes"
+	"fmt"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+	_ "github.com/spf13/viper/remote"
+)
+
 func main() {
 	//db := initDB()
 	//redisClient := initRedis()
@@ -7,6 +16,9 @@ func main() {
 	//server := initWebServer(redisClient)
 	//
 	//initUser(server, db, redisClient)
+	initViperV1()
+	//initViperRemote()
+	//initViperByConfig()
 	server := InitWebServer()
 	server.Run(":8080")
 
@@ -112,3 +124,75 @@ func main() {
 //	login := middleware.LoginJWTMiddlewareBuilder{}
 //	server.Use(login.CheckLogin())
 //}
+
+func initViper() {
+	viper.SetConfigName("dev")      //文件名称
+	viper.SetConfigType("yaml")     //文件后缀名
+	viper.AddConfigPath("./config") //当前工作目录下的config子目录
+	//viper.AddConfigPath("./tmp/config") //当前工作目录下的config子目录
+	//viper.AddConfigPath("./etc/webook") //当前工作目录下的config子目录
+	err := viper.ReadInConfig() //读取配置到内存
+	if err != nil {
+		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+	}
+
+	//otherViper := viper.New()
+	//otherViper.AddConfigPath("./config")
+	//otherViper.SetConfigName("myjson")
+	//otherViper.SetConfigType("json")
+}
+
+func initViperV1() {
+	viper.SetConfigFile("config/dev.yaml")
+	viper.WatchConfig()
+	//只告诉你文件变了
+	viper.OnConfigChange(func(e fsnotify.Event) {
+		fmt.Println(e.Name, e.Op)
+
+	})
+	err := viper.ReadInConfig() //读取配置到内存
+	if err != nil {
+		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+	}
+}
+
+// 可读网络，可读预设 配置
+func initViperReader() {
+	viper.SetConfigType("yaml")
+	cfg := `
+db.mysql:
+  dsn: "root:root@tcp(localhost:13316)/webook"
+
+redis:
+  addr: "localhost:16379"
+`
+
+	err := viper.ReadConfig(bytes.NewBuffer([]byte(cfg)))
+	if err != nil {
+		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+	}
+}
+
+func initViperByConfig() {
+	//设置页面 项目参数一列 --config=config/dev.yaml
+	cfile := pflag.String("config", "config/config.yaml", "config file path")
+	pflag.Parse()
+	viper.SetConfigFile(*cfile)
+	err := viper.ReadInConfig() //读取配置到内存
+	if err != nil {
+		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+	}
+}
+
+func initViperRemote() {
+	viper.SetConfigType("yaml")
+	err := viper.AddRemoteProvider("etcd3", "127.0.0.1:12379", "/webook")
+	if err != nil {
+		panic(err)
+		//log.Println("watch", viper.GetString("test.key")) 有变化的远程配置，需要重新get一下
+	}
+	err = viper.ReadRemoteConfig()
+	if err != nil {
+		panic(err)
+	}
+}
