@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
 	"time"
@@ -128,6 +129,7 @@ func (c *UserHandler) loginSms(ctx *gin.Context) {
 			Code: 5,
 			Msg:  "系统错误",
 		})
+		zap.L().Error("codeSvc.Verify fail", zap.Error(err))
 		return
 	}
 	if !ok {

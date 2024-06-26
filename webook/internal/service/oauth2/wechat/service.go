@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
+	"gitee.com/geekbang/basic-go/webook/pkg/logger"
 	"net/http"
 	"net/url"
 )
@@ -20,14 +21,26 @@ type service struct {
 	appId     string
 	appSecret string
 	client    *http.Client
+	l         logger.LoggerV1
 }
 
-func NewService(appId string, appSecret string) Service {
+func NewServiceV1(appId string, appSecret string, client *http.Client, l logger.LoggerV1) Service {
+	return &service{
+		appId:     appId,
+		appSecret: appSecret,
+		//依赖注入，不偷懒版
+		client: client,
+		l:      l,
+	}
+}
+
+func NewService(appId string, appSecret string, l logger.LoggerV1) Service {
 	return &service{
 		appId:     appId,
 		appSecret: appSecret,
 		//依赖注入，但是没有完全注入
 		client: http.DefaultClient,
+		l:      l,
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	_ "github.com/spf13/viper/remote"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -140,6 +141,14 @@ func initViper() {
 	//otherViper.AddConfigPath("./config")
 	//otherViper.SetConfigName("myjson")
 	//otherViper.SetConfigType("json")
+}
+
+func initLogger() {
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	zap.ReplaceGlobals(logger)
 }
 
 func initViperV1() {

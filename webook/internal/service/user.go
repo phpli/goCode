@@ -5,6 +5,7 @@ import (
 	"errors"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
+	"gitee.com/geekbang/basic-go/webook/pkg/logger"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -26,11 +27,16 @@ type UserService interface {
 }
 
 type userService struct {
-	repo repository.UserRepository
+	repo   repository.UserRepository
+	logger logger.LoggerV1
 }
 
-func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+func NewUserService(repo repository.UserRepository, logger logger.LoggerV1) UserService {
+	return &userService{
+		repo: repo,
+		//logger: logger.Named("user"),
+		logger: logger, //注入了，但是又没完全注入
+	}
 }
 
 func (svc *userService) SignUp(ctx context.Context, u domain.User) error {
