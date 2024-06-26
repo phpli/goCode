@@ -126,7 +126,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 			defer ctrl.Finish()
 			server := gin.Default()
 			usersvc := tt.mock(ctrl)
-			h := NewUserHandler(usersvc, nil)
+			h := NewUserHandler(usersvc, nil, nil, nil)
 			h.RegisterRoutes(server)
 			req, err := http.NewRequest(http.MethodPost, "/users/signup",
 				bytes.NewBuffer([]byte(tt.reqBody)))
