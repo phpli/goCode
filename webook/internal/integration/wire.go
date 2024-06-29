@@ -8,6 +8,7 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
 	"gitee.com/geekbang/basic-go/webook/internal/web"
+	ijwt "gitee.com/geekbang/basic-go/webook/internal/web/jwt"
 	"gitee.com/geekbang/basic-go/webook/ioc"
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
@@ -15,7 +16,8 @@ import (
 
 func InitWebServer() *gin.Engine {
 	wire.Build(
-		ioc.InitDB, ioc.InitRedis,
+		ioc.InitDB, ioc.InitRedis, ioc.InitLogger,
+
 		dao.NewUserDAO,
 		cache.NewCodeCache,
 		cache.NewUserCache,
@@ -24,10 +26,17 @@ func InitWebServer() *gin.Engine {
 		repository.NewCachedUserRepository,
 		service.NewUserService,
 		service.NewCodeService,
+		service.NewArticleService,
+		ijwt.NewRedisJWTHandler,
+		ioc.InitWechatService,
 		ioc.InitSMSService,
 		web.NewUserHandler,
+		web.NewOAuth2WeChatHandler,
+		web.NewArticleHandler,
+
 		ioc.InitWebServer,
 		ioc.InitMiddlewares,
+		ioc.NewWechatHandlerConfig,
 		//gin.Default,
 	)
 	return new(gin.Engine)

@@ -16,7 +16,7 @@ func InitDB(l logger2.LoggerV1) *gorm.DB {
 		DSN string `yaml:"dsn"`
 	}
 	var cfg Config = Config{
-		DSN: "root:root@tcp(localhost:13316)/webook_default", // yaml 文件里没有的话，会读这个默认值
+		DSN: "root:root@tcp(localhost:13316)/webook", // yaml 文件里没有的话，会读这个默认值
 	}
 	//err := viper.UnmarshalKey("db.mysql", &cfg) db.mysql 不能带db.
 	err := viper.UnmarshalKey("db", &cfg)

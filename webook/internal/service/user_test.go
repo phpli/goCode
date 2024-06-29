@@ -96,7 +96,7 @@ func Test_userService_Login(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			svc := NewUserService(tc.mock(ctrl))
+			svc := NewUserService(tc.mock(ctrl), nil)
 			user, err := svc.Login(tc.ctx, tc.email, tc.password)
 			assert.Equal(t, tc.wantUser, user)
 			assert.Equal(t, tc.wantErr, err)

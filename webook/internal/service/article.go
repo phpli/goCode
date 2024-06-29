@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
+	"gitee.com/geekbang/basic-go/webook/internal/repository"
 )
 
 type ArticleService interface {
@@ -10,13 +11,15 @@ type ArticleService interface {
 }
 
 type articleService struct {
+	repo repository.ArticleRepository
 }
 
-func NewArticleService() ArticleService {
-	return &articleService{}
+func NewArticleService(repo repository.ArticleRepository) ArticleService {
+	return &articleService{
+		repo: repo,
+	}
 }
 
 func (a *articleService) Save(ctx context.Context, article domain.Article) (int64, error) {
-	//TODO implement me
-	return 1, nil
+	return a.repo.Create(ctx, article)
 }

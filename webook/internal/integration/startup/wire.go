@@ -47,8 +47,10 @@ func InitWebServer() *gin.Engine {
 		// cache 部分
 		cache.NewCodeCache,
 
+		dao.NewGORMArticleDAO,
 		// repository 部分
 		repository.NewCodeRepository,
+		repository.NewArticleRepository,
 
 		// Service 部分
 		ioc.InitSMSService,
@@ -82,10 +84,11 @@ func InitArticleHandler() *web.ArticleHandler {
 	wire.Build(
 		thirdPartySet,
 		//userSvcProvider,
+		dao.NewGORMArticleDAO,
 		service.NewArticleService,
 		web.NewArticleHandler,
 		//interactiveSvcSet,
-		//repository.NewCachedArticleRepository,
+		repository.NewArticleRepository,
 		//cache.NewArticleRedisCache,
 		//article.NewSaramaSyncProducer,
 	)
