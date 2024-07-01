@@ -83,6 +83,85 @@ func (s *ArticleTestSuite) TestEdit() {
 				Msg:  "ok",
 			},
 		},
+		{
+			name: "修改帖子",
+			before: func(t *testing.T) {
+				//提前准备数据
+				err := s.db.Create(&dao.Article{
+					Id:       2,
+					Title:    "我的标题",
+					Content:  "我的内容",
+					AuthorId: 123,
+					Ctime:    123,
+					Utime:    234,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func(t *testing.T) {
+				var art dao.Article
+				err := s.db.Where("id = ?", 2).First(&art).Error
+				assert.NoError(t, err)
+				//是确保我更新了更新时间
+				assert.True(t, art.Utime > 234)
+				art.Utime = 0
+				assert.Equal(t, dao.Article{
+					Id:       2,
+					Title:    "新的标题",
+					Content:  "新的内容",
+					AuthorId: 123,
+					Ctime:    123,
+				}, art)
+			},
+			art: Article{
+				Id:      2,
+				Title:   "新的标题",
+				Content: "新的内容",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Data: 2,
+				Msg:  "ok",
+			},
+		},
+		{
+			name: "修改别人的帖子",
+			before: func(t *testing.T) {
+				//提前准备数据
+				err := s.db.Create(&dao.Article{
+					Id:       3,
+					Title:    "我的标题",
+					Content:  "我的内容",
+					AuthorId: 789,
+					Ctime:    123,
+					Utime:    234,
+				}).Error
+				assert.NoError(t, err)
+			},
+			after: func(t *testing.T) {
+				var art dao.Article
+				err := s.db.Where("id = ?", 3).First(&art).Error
+				assert.NoError(t, err)
+				//是确保我更新了更新时间
+				assert.Equal(t, dao.Article{
+					Id:       3,
+					Title:    "我的标题",
+					Content:  "我的内容",
+					AuthorId: 789,
+					Ctime:    123,
+					Utime:    234,
+				}, art)
+			},
+			art: Article{
+				Id:      3,
+				Title:   "新的标题",
+				Content: "新的内容",
+			},
+			wantCode: http.StatusOK,
+			wantRes: Result[int64]{
+				Code: 5,
+				Msg:  "系统错误",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -99,10 +178,10 @@ func (s *ArticleTestSuite) TestEdit() {
 			req.Header.Set("Content-Type", "application/json")
 			resp := httptest.NewRecorder()
 			s.server.ServeHTTP(resp, req)
+			assert.Equal(t, tc.wantCode, resp.Code)
 			if resp.Code != 200 {
 				return
 			}
-			assert.Equal(t, tc.wantCode, resp.Code)
 			var res Result[int64]
 			err = json.NewDecoder(resp.Body).Decode(&res)
 			assert.NoError(t, err)

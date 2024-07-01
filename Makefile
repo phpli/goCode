@@ -1,6 +1,7 @@
 .PHONY:mock
 mock:
 	@mockgen -source=webook/internal/service/user.go -package=svcmocks -destination=webook/internal/service/mocks/user.moc.go
+	@mockgen -source=webook/internal/service/article.go -package=svcmocks -destination=webook/internal/service/mocks/article.moc.go
 	@mockgen -source=webook/internal/service/code.go -package=svcmocks -destination=webook/internal/service/mocks/code.moc.go
 	@mockgen -source=webook/internal/repository/user.go -package=repomocks -destination=webook/internal/repository/mocks/user.moc.go
 	@mockgen -source=webook/internal/repository/code.go -package=repomocks -destination=webook/internal/repository/mocks/code.moc.go

@@ -127,9 +127,9 @@ func main() {
 //}
 
 func initViper() {
-	viper.SetConfigName("dev")      //文件名称
-	viper.SetConfigType("yaml")     //文件后缀名
-	viper.AddConfigPath("./config") //当前工作目录下的config子目录
+	viper.SetConfigName("dev")             //文件名称
+	viper.SetConfigType("yaml")            //文件后缀名
+	viper.AddConfigPath("./webook/config") //当前工作目录下的config子目录
 	//viper.AddConfigPath("./tmp/config") //当前工作目录下的config子目录
 	//viper.AddConfigPath("./etc/webook") //当前工作目录下的config子目录
 	err := viper.ReadInConfig() //读取配置到内存
@@ -152,12 +152,11 @@ func initLogger() {
 }
 
 func initViperV1() {
-	viper.SetConfigFile("config/dev.yaml")
+	viper.SetConfigFile("./webook/config/dev.yaml")
 	viper.WatchConfig()
 	//只告诉你文件变了
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		fmt.Println(e.Name, e.Op)
-
 	})
 	err := viper.ReadInConfig() //读取配置到内存
 	if err != nil {

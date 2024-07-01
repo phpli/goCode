@@ -40,7 +40,7 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		claims := &ijwt.UserClaims{}
 
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-			return []byte("fb0e22c79ac75679e9881e6ba183b354"), nil
+			return ijwt.AtKey, nil
 		})
 		if err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)

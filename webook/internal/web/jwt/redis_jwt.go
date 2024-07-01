@@ -85,6 +85,7 @@ func (r *RedisJWTHandler) CheckSession(ctx *gin.Context, ssid string) error {
 		return nil
 	case err == nil:
 		if val == 0 {
+			return nil
 		}
 		return errors.New("session expired")
 	default:

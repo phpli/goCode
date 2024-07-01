@@ -26,41 +26,38 @@ func NewArticleHandler(svc service.ArticleService, l logger.LoggerV1) *ArticleHa
 func (h *ArticleHandler) RegisterRoutes(server *gin.Engine) {
 	g := server.Group("/articles")
 	g.POST("/edit", h.Edit)
+	g.POST("/publish", h.Publish)
 }
 
-func (h *ArticleHandler) Edit(ctx *gin.Context) {
-	type Req struct {
-		Title   string `form:"title"`
-		Content string `form:"content"`
-	}
-	var req Req
-	if err := ctx.Bind(&req); err != nil {
-		//ctx.JSON(http.StatusOK, Result{
-		//	Code: 5,
-		//	Msg:  err.Error(),
-		//})
+func (h *ArticleHandler) Publish(ctx *gin.Context) {
+
+	req, claims, done := h.saveOrPublish(ctx)
+	if done {
 		return
 	}
-	//c, _ := ctx.Get("claims") 取值加类型断言
-	//claims, ok := c.(*ijwt.UserClaims)
-	claims, ok := ctx.MustGet("claims").(*ijwt.UserClaims)
-	if !ok {
+	//调用service
+	id, err := h.svc.Publish(ctx, req.toDomain(claims.Uid))
+	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "系统错误",
 		})
-		h.l.Error("没有用户信息")
+		h.l.Error("发表失败！", logger.Error(err))
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg:  "ok",
+		Data: id,
+	})
+}
+
+func (h *ArticleHandler) Edit(ctx *gin.Context) {
+	req, claims, done := h.saveOrPublish(ctx)
+	if done {
 		return
 	}
 	//调用service
-	id, err := h.svc.Save(ctx, domain.Article{
-		Title:   req.Title,
-		Content: req.Content,
-		Author: domain.Author{
-			Id: claims.Uid,
-			//Name: claims.Issuer,
-		},
-	})
+	id, err := h.svc.Save(ctx, req.toDomain(claims.Uid))
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
@@ -73,4 +70,41 @@ func (h *ArticleHandler) Edit(ctx *gin.Context) {
 		Msg:  "ok",
 		Data: id,
 	})
+}
+
+func (req ArticleReq) toDomain(uid int64) domain.Article {
+	return domain.Article{
+		Id:      req.Id,
+		Title:   req.Title,
+		Content: req.Content,
+		Author: domain.Author{
+			Id: uid,
+			//Name: claims.Issuer,
+		},
+	}
+}
+
+func (h *ArticleHandler) saveOrPublish(ctx *gin.Context) (ArticleReq, *ijwt.UserClaims, bool) {
+	var req ArticleReq
+	if err := ctx.Bind(&req); err != nil {
+		return ArticleReq{}, nil, true
+	}
+	//c, _ := ctx.Get("claims") 取值加类型断言
+	//claims, ok := c.(*ijwt.UserClaims)
+	claims, ok := ctx.MustGet("claims").(*ijwt.UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		h.l.Error("没有用户信息")
+		return ArticleReq{}, nil, true
+	}
+	return req, claims, false
+}
+
+type ArticleReq struct {
+	Id      int64  `json:"id"`
+	Title   string `json:"title"`
+	Content string `json:"content"`
 }
