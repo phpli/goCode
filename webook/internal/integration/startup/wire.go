@@ -6,6 +6,7 @@ import (
 	//"gitee.com/geekbang/basic-go/webook/internal/events/article"
 	//"gitee.com/geekbang/basic-go/webook/internal/job"
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
+	"gitee.com/geekbang/basic-go/webook/internal/repository/article"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
@@ -50,7 +51,7 @@ func InitWebServer() *gin.Engine {
 		dao.NewGORMArticleDAO,
 		// repository 部分
 		repository.NewCodeRepository,
-		repository.NewArticleRepository,
+		article.NewArticleRepository,
 
 		// Service 部分
 		ioc.InitSMSService,
@@ -88,7 +89,7 @@ func InitArticleHandler() *web.ArticleHandler {
 		service.NewArticleService,
 		web.NewArticleHandler,
 		//interactiveSvcSet,
-		repository.NewArticleRepository,
+		article.NewArticleRepository,
 		//cache.NewArticleRedisCache,
 		//article.NewSaramaSyncProducer,
 	)

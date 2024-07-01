@@ -4,6 +4,7 @@ package main
 
 import (
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
+	"gitee.com/geekbang/basic-go/webook/internal/repository/article"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
@@ -25,7 +26,7 @@ func InitWebServer() *gin.Engine {
 
 		repository.NewCodeRepository,
 		repository.NewCachedUserRepository,
-		repository.NewArticleRepository,
+		article.NewArticleRepository,
 		service.NewUserService,
 		service.NewCodeService,
 		service.NewArticleService,

@@ -8,6 +8,7 @@ package main
 
 import (
 	"gitee.com/geekbang/basic-go/webook/internal/repository"
+	"gitee.com/geekbang/basic-go/webook/internal/repository/article"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
@@ -42,7 +43,7 @@ func InitWebServer() *gin.Engine {
 	wechatHandlerConfig := ioc.NewWechatHandlerConfig()
 	oAuth2WeChatHandler := web.NewOAuth2WeChatHandler(wechatService, userService, wechatHandlerConfig, handler)
 	articleDAO := dao.NewGORMArticleDAO(db)
-	articleRepository := repository.NewArticleRepository(articleDAO)
+	articleRepository := article.NewArticleRepository(articleDAO)
 	articleService := service.NewArticleService(articleRepository)
 	articleHandler := web.NewArticleHandler(articleService, loggerV1)
 	engine := ioc.InitWebServer(v, userHandler, oAuth2WeChatHandler, articleHandler)
