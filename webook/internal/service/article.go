@@ -47,11 +47,12 @@ func (a *articleService) Save(ctx context.Context, article domain.Article) (int6
 }
 
 func (a *articleService) Publish(ctx context.Context, article domain.Article) (int64, error) {
-	if article.Id > 0 {
-		err := a.repo.Update(ctx, article)
-		return article.Id, err
-	}
-	return a.repo.Create(ctx, article)
+	//if article.Id > 0 {
+	//	err := a.repo.Update(ctx, article)
+	//	return article.Id, err
+	//}
+	//return a.repo.Create(ctx, article)
+	return a.repo.Sync(ctx, article)
 }
 
 func (a *articleService) PublishV1(ctx context.Context, article domain.Article) (int64, error) {

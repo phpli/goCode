@@ -11,6 +11,7 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/repository/article"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
+	article2 "gitee.com/geekbang/basic-go/webook/internal/repository/dao/article"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
 	"gitee.com/geekbang/basic-go/webook/internal/web"
 	"gitee.com/geekbang/basic-go/webook/internal/web/jwt"
@@ -39,7 +40,7 @@ func InitWebServer() *gin.Engine {
 	wechatService := InitWechatService(loggerV1)
 	wechatHandlerConfig := NewWechatHandlerConfig()
 	oAuth2WeChatHandler := web.NewOAuth2WeChatHandler(wechatService, userService, wechatHandlerConfig, handler)
-	articleDAO := dao.NewGORMArticleDAO(db)
+	articleDAO := article2.NewGORMArticleDAO(db)
 	articleRepository := article.NewArticleRepository(articleDAO)
 	articleService := service.NewArticleService(articleRepository)
 	articleHandler := web.NewArticleHandler(articleService, loggerV1)
@@ -49,7 +50,7 @@ func InitWebServer() *gin.Engine {
 
 func InitArticleHandler() *web.ArticleHandler {
 	db := InitDB()
-	articleDAO := dao.NewGORMArticleDAO(db)
+	articleDAO := article2.NewGORMArticleDAO(db)
 	articleRepository := article.NewArticleRepository(articleDAO)
 	articleService := service.NewArticleService(articleRepository)
 	loggerV1 := InitLogger()

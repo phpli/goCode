@@ -9,6 +9,7 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/repository/article"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
+	article2 "gitee.com/geekbang/basic-go/webook/internal/repository/dao/article"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
 	//"gitee.com/geekbang/basic-go/webook/internal/service/sms/async"
 	"gitee.com/geekbang/basic-go/webook/internal/web"
@@ -48,7 +49,7 @@ func InitWebServer() *gin.Engine {
 		// cache 部分
 		cache.NewCodeCache,
 
-		dao.NewGORMArticleDAO,
+		article2.NewGORMArticleDAO,
 		// repository 部分
 		repository.NewCodeRepository,
 		article.NewArticleRepository,
@@ -85,7 +86,7 @@ func InitArticleHandler() *web.ArticleHandler {
 	wire.Build(
 		thirdPartySet,
 		//userSvcProvider,
-		dao.NewGORMArticleDAO,
+		article2.NewGORMArticleDAO,
 		service.NewArticleService,
 		web.NewArticleHandler,
 		//interactiveSvcSet,

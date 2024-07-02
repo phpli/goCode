@@ -1,15 +1,18 @@
-package dao
+package article
 
 import (
 	"context"
 	"fmt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"time"
 )
 
 type ArticleDAO interface {
 	Insert(ctx context.Context, art Article) (int64, error)
 	UpdateById(ctx context.Context, article Article) error
+	Sync(ctx context.Context, article Article) (int64, error)
+	Upsert(ctx context.Context, article PublishedArticle) error
 }
 
 func NewGORMArticleDAO(db *gorm.DB) ArticleDAO {
@@ -22,12 +25,52 @@ type GORMArticleDAO struct {
 	db *gorm.DB
 }
 
+func (G *GORMArticleDAO) Sync(ctx context.Context, article Article) (int64, error) {
+	//return
+	//panic("implement me")
+	//先操作制作库，再操作线上库
+	var (
+		id  = article.Id
+		err error
+	)
+
+	err = G.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txDAO := NewGORMArticleDAO(tx)
+		//publishArt := PublishedArticle(article)
+		if id > 0 {
+			err = txDAO.UpdateById(ctx, article)
+		} else {
+			id, err = txDAO.Insert(ctx, article)
+		}
+		if err != nil {
+			return err
+		}
+		return txDAO.Upsert(ctx, PublishedArticle{Article: article})
+	})
+	return 0, err
+}
+
 func (G *GORMArticleDAO) Insert(ctx context.Context, art Article) (int64, error) {
 	now := time.Now().UnixMilli()
 	art.Ctime = now
 	art.Utime = now
 	err := G.db.WithContext(ctx).Create(&art).Error
 	return art.Id, err
+}
+
+func (G *GORMArticleDAO) Upsert(ctx context.Context, art PublishedArticle) error {
+	now := time.Now().UnixMilli()
+	art.Ctime = now
+	art.Utime = now
+	err := G.db.Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{
+			"title":   art.Title,
+			"content": art.Content,
+			"utime":   now,
+		}),
+	}).Create(&art).Error
+	return err
 }
 
 func (G *GORMArticleDAO) UpdateById(ctx context.Context, art Article) error {
@@ -59,4 +102,10 @@ type Article struct {
 	AuthorId int64  `gorm:"type:bigint(20);not null;index"`
 	Ctime    int64
 	Utime    int64
+}
+
+//type PublishedArticle Article
+
+type PublishedArticle struct {
+	Article
 }

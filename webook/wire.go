@@ -7,6 +7,7 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/repository/article"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/dao"
+	article2 "gitee.com/geekbang/basic-go/webook/internal/repository/dao/article"
 	"gitee.com/geekbang/basic-go/webook/internal/service"
 	"gitee.com/geekbang/basic-go/webook/internal/web"
 	ijwt "gitee.com/geekbang/basic-go/webook/internal/web/jwt"
@@ -20,7 +21,7 @@ func InitWebServer() *gin.Engine {
 		ioc.InitDB, ioc.InitRedis, ioc.InitLogger,
 
 		dao.NewUserDAO,
-		dao.NewGORMArticleDAO,
+		article2.NewGORMArticleDAO,
 		cache.NewCodeCache,
 		cache.NewUserCache,
 
