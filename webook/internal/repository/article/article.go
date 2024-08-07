@@ -37,6 +37,7 @@ func (c *CachedArticleRepository) Create(ctx context.Context, article domain.Art
 		Title:    article.Title,
 		Content:  article.Content,
 		AuthorId: article.Author.Id,
+		Status:   uint8(article.Status),
 	})
 }
 
