@@ -39,6 +39,7 @@ func NewArticleServiceV1(author article.ArticleAuthorRepository, reader article.
 	}
 }
 func (a *articleService) Save(ctx context.Context, article domain.Article) (int64, error) {
+	article.Status = domain.ArticleStatusUnpublish
 	if article.Id > 0 {
 		err := a.repo.Update(ctx, article)
 		return article.Id, err

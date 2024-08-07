@@ -102,6 +102,7 @@ type Article struct {
 	AuthorId int64  `gorm:"type:bigint(20);not null;index"`
 	Ctime    int64
 	Utime    int64
+	Status   uint8 `gorm:"type:int(11);not null"`
 }
 
 //type PublishedArticle Article
