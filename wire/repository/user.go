@@ -6,8 +6,8 @@ type UserRepository struct {
 	dao *dao.UserDAO
 }
 
-func NewUserRepository(d *dao.UserDAO) *UserRepository {
+func NewUserRepository(dao *dao.UserDAO) *UserRepository {
 	return &UserRepository{
-		dao: d,
+		dao: dao,
 	}
 }

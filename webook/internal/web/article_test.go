@@ -8,9 +8,10 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/service"
 	svcmocks "gitee.com/geekbang/basic-go/webook/internal/service/mocks"
 	ijwt "gitee.com/geekbang/basic-go/webook/internal/web/jwt"
-	"gitee.com/geekbang/basic-go/webook/pkg/logger"
+	logger2 "gitee.com/geekbang/basic-go/webook/pkg/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 	"net/http"
 	"net/http/httptest"
@@ -18,16 +19,15 @@ import (
 )
 
 func TestArticleHandler_Publish(t *testing.T) {
-	testCases := []struct {
-		name string
-		mock func(ctrl *gomock.Controller) service.ArticleService
-
+	tests := []struct {
+		name     string
+		mock     func(ctrl *gomock.Controller) service.ArticleService
 		reqBody  string
 		wantCode int
 		wantRes  Result
 	}{
 		{
-			name: "新建并且发表成功",
+			name: "新建并发表",
 			mock: func(ctrl *gomock.Controller) service.ArticleService {
 				svc := svcmocks.NewMockArticleService(ctrl)
 				svc.EXPECT().Publish(gomock.Any(), domain.Article{
@@ -41,127 +41,72 @@ func TestArticleHandler_Publish(t *testing.T) {
 			},
 			reqBody: `
 {
- "title": "我的标题",
- "content": "我的内容"
+	"title":"我的标题",
+	"content":"我的内容"
 }
 `,
-			wantCode: 200,
+			wantCode: http.StatusOK,
 			wantRes: Result{
-				// 原本是 int64的，但是因为 Data 是any，所以在反序列化的时候，
-				// 用的 float64
 				Data: float64(1),
+				Msg:  "ok",
 			},
 		},
 		{
-			name: "修改并且发表成功",
+			name: "发表失败",
 			mock: func(ctrl *gomock.Controller) service.ArticleService {
 				svc := svcmocks.NewMockArticleService(ctrl)
 				svc.EXPECT().Publish(gomock.Any(), domain.Article{
-					Id:      1,
-					Title:   "新的标题",
-					Content: "新的内容",
+					Title:   "我的标题",
+					Content: "我的内容",
 					Author: domain.Author{
 						Id: 123,
 					},
-				}).Return(int64(1), nil)
+				}).Return(int64(0), errors.New("publish error"))
 				return svc
 			},
 			reqBody: `
 {
-"id": 1,
- "title": "新的标题",
- "content": "新的内容"
+	"title":"我的标题",
+	"content":"我的内容"
 }
 `,
-			wantCode: 200,
+			wantCode: http.StatusOK,
 			wantRes: Result{
-				// 原本是 int64的，但是因为 Data 是any，所以在反序列化的时候，
-				// 用的 float64
-				Data: float64(1),
-			},
-		},
-		{
-			name: "输入有误",
-			mock: func(ctrl *gomock.Controller) service.ArticleService {
-				svc := svcmocks.NewMockArticleService(ctrl)
-				return svc
-			},
-			reqBody: `
-{
-"id": 1,
- "title": "新的标题",
- "content": "新的内容",,,,
-}
-`,
-			wantCode: 400,
-		},
-		{
-			name: "publish错误",
-			mock: func(ctrl *gomock.Controller) service.ArticleService {
-				svc := svcmocks.NewMockArticleService(ctrl)
-				svc.EXPECT().Publish(gomock.Any(), domain.Article{
-					Id:      1,
-					Title:   "新的标题",
-					Content: "新的内容",
-					Author: domain.Author{
-						Id: 123,
-					},
-				}).Return(int64(0), errors.New("mock error"))
-				return svc
-			},
-			reqBody: `
-{
-"id": 1,
- "title": "新的标题",
- "content": "新的内容"
-}
-`,
-			wantCode: 200,
-			wantRes: Result{
-				// 原本是 int64的，但是因为 Data 是any，所以在反序列化的时候，
-				// 用的 float64
-				Msg:  "系统错误",
 				Code: 5,
+				Msg:  "系统错误",
 			},
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-
-			// 构造 handler
-			svc := tc.mock(ctrl)
-			hdl := NewArticleHandler(logger.NewNopLogger(), svc)
-
-			// 准备服务器，注册路由
 			server := gin.Default()
-			server.Use(func(ctx *gin.Context) {
-				ctx.Set("user", ijwt.UserClaims{
+			//模拟登陆态
+			server.Use(func(c *gin.Context) {
+				c.Set("claims", &ijwt.UserClaims{
 					Uid: 123,
 				})
 			})
-			hdl.RegisterRoutes(server)
-
-			// 准备Req和记录的 recorder
-			req, err := http.NewRequest(http.MethodPost,
-				"/articles/publish", bytes.NewReader([]byte(tc.reqBody)))
-			assert.NoError(t, err)
+			h := NewArticleHandler(tt.mock(ctrl), &logger2.NopLogger{})
+			h.RegisterRoutes(server)
+			req, err := http.NewRequest(http.MethodPost, "/articles/publish",
+				bytes.NewBuffer([]byte(tt.reqBody)))
 			req.Header.Set("Content-Type", "application/json")
-			recorder := httptest.NewRecorder()
-
-			// 执行
-			server.ServeHTTP(recorder, req)
-			// 断言结果
-			assert.Equal(t, tc.wantCode, recorder.Code)
-			if recorder.Code != http.StatusOK {
+			require.NoError(t, err)
+			//这里加上了 可以直接往下走
+			resp := httptest.NewRecorder()
+			//t.Log(resp)
+			server.ServeHTTP(resp, req)
+			assert.Equal(t, tt.wantCode, resp.Code)
+			if resp.Code != 200 {
 				return
 			}
 			var res Result
-			err = json.NewDecoder(recorder.Body).Decode(&res)
+			err = json.NewDecoder(resp.Body).Decode(&res)
 			assert.NoError(t, err)
-			assert.Equal(t, tc.wantRes, res)
+			assert.Equal(t, tt.wantRes, res)
 		})
 	}
 }

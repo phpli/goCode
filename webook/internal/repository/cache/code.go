@@ -9,63 +9,67 @@ import (
 )
 
 var (
-	//go:embed lua/set_code.lua
-	luaSetCode string
-	//go:embed lua/verify_code.lua
-	luaVerifyCode string
-
-	ErrCodeSendTooMany   = errors.New("发送太频繁")
-	ErrCodeVerifyTooMany = errors.New("验证太频繁")
+	ErrCodeSendTooMany        = errors.New("send message too many")
+	ErrCodeVerifyTooManyTimes = errors.New("code verify too many times")
 )
 
+//go:embed lua/set_code.lua
+var luaSetCode string
+
+//go:embed lua/verify_code.lua
+var luaVerifyCode string
+
 type CodeCache interface {
-	Set(ctx context.Context, biz, phone, code string) error
-	Verify(ctx context.Context, biz, phone, code string) (bool, error)
+	Set(ctx context.Context, biz string, phone string, code string) error
+	Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error)
+	//key(Biz string, phone string) string
 }
 
 type RedisCodeCache struct {
-	cmd redis.Cmdable
+	client redis.Cmdable
 }
 
-func NewCodeCache(cmd redis.Cmdable) CodeCache {
+func NewCodeCache(client redis.Cmdable) CodeCache {
 	return &RedisCodeCache{
-		cmd: cmd,
+		client: client,
 	}
 }
 
-func (c *RedisCodeCache) Set(ctx context.Context, biz, phone, code string) error {
-	res, err := c.cmd.Eval(ctx, luaSetCode, []string{c.key(biz, phone)}, code).Int()
-	// 打印日志
+func (c *RedisCodeCache) Set(ctx context.Context, biz string, phone string, code string) error {
+	res, err := c.client.Eval(ctx, luaSetCode, []string{c.key(biz, phone)}, code).Int()
 	if err != nil {
-		// 调用 redis 出了问题
 		return err
 	}
 	switch res {
-	case -2:
-		return errors.New("验证码存在，但是没有过期时间")
+	case 0:
+		return nil
 	case -1:
 		return ErrCodeSendTooMany
 	default:
-		return nil
+		return errors.New("系统错误")
 	}
 }
 
-func (c *RedisCodeCache) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
-	res, err := c.cmd.Eval(ctx, luaVerifyCode, []string{c.key(biz, phone)}, code).Int()
+func (c *RedisCodeCache) Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error) {
+	res, err := c.client.Eval(ctx, luaVerifyCode, []string{c.key(biz, phone)}, inputCode).Int()
+
 	if err != nil {
-		// 调用 redis 出了问题
 		return false, err
 	}
+
 	switch res {
+	case 0:
+		return true, nil
+	case -1:
+		//正常来说这里频繁出现，需要预警
+		return false, ErrCodeVerifyTooManyTimes
 	case -2:
 		return false, nil
-	case -1:
-		return false, ErrCodeVerifyTooMany
 	default:
-		return true, nil
+		return false, nil
 	}
 }
 
-func (c *RedisCodeCache) key(biz, phone string) string {
-	return fmt.Sprintf("phone_code:%s:%s", biz, phone)
+func (c *RedisCodeCache) key(Biz string, phone string) string {
+	return fmt.Sprintf("phone_code:%s:%s", Biz, phone)
 }

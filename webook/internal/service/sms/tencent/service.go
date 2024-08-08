@@ -6,56 +6,46 @@ import (
 	"github.com/ecodeclub/ekit"
 	"github.com/ecodeclub/ekit/slice"
 	sms "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms/v20210111"
-	"go.uber.org/zap"
 )
 
 type Service struct {
-	client   *sms.Client
 	appId    *string
 	signName *string
+	client   *sms.Client
+	//limiter  ratelimit.Limiter
 }
 
-func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
-	request := sms.NewSendSmsRequest()
-	request.SetContext(ctx)
-	request.SmsSdkAppId = s.appId
-	request.SignName = s.signName
-	request.TemplateId = ekit.ToPtr[string](tplId)
-	request.TemplateParamSet = s.toPtrSlice(args)
-	request.PhoneNumberSet = s.toPtrSlice(numbers)
-	response, err := s.client.SendSms(request)
-	zap.L().Debug("请求腾讯SendSMS接口",
-		zap.Any("req", request),
-		zap.Any("resp", response))
-	// 处理异常
+func NewService(client *sms.Client, appId string, signName string) *Service {
+	return &Service{
+		appId:    ekit.ToPtr[string](appId),
+		signName: ekit.ToPtr[string](signName),
+		client:   client,
+		//limiter:  limiter,
+	}
+}
+
+func (s *Service) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
+	req := sms.NewSendSmsRequest()
+	req.SetContext(ctx)
+	req.SmsSdkAppId = s.appId
+	req.SignName = s.signName
+	req.TemplateId = ekit.ToPtr[string](biz)
+	req.PhoneNumberSet = s.toStringPtrSlice(numbers)
+	req.TemplateParamSet = s.toStringPtrSlice(args)
+	resp, err := s.client.SendSms(req)
 	if err != nil {
 		return err
 	}
-	for _, statusPtr := range response.Response.SendStatusSet {
-		if statusPtr == nil {
-			// 不可能进来这里
-			continue
-		}
-		status := *statusPtr
-		if status.Code == nil || *(status.Code) != "Ok" {
-			// 发送失败
-			return fmt.Errorf("发送短信失败 code: %s, msg: %s", *status.Code, *status.Message)
+	for _, status := range resp.Response.SendStatusSet {
+		if status.Code == nil || *(status.Code) != "OK" {
+			return fmt.Errorf("发送短信失败 %s，%s", *status.Code, *(status.Message))
 		}
 	}
 	return nil
 }
 
-func (s *Service) toPtrSlice(data []string) []*string {
-	return slice.Map[string, *string](data,
-		func(idx int, src string) *string {
-			return &src
-		})
-}
-
-func NewService(client *sms.Client, appId string, signName string) *Service {
-	return &Service{
-		client:   client,
-		appId:    &appId,
-		signName: &signName,
-	}
+func (s *Service) toStringPtrSlice(src []string) []*string {
+	return slice.Map[string, *string](src, func(idx int, src string) *string {
+		return &src
+	})
 }

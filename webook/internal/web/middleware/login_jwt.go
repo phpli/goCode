@@ -1,68 +1,80 @@
 package middleware
 
 import (
+	"encoding/gob"
 	ijwt "gitee.com/geekbang/basic-go/webook/internal/web/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"net/http"
+	"time"
 )
 
 type LoginJWTMiddlewareBuilder struct {
+	paths []string
+	cmd   redis.Cmdable
 	ijwt.Handler
 }
 
-func NewLoginJWTMiddlewareBuilder(hdl ijwt.Handler) *LoginJWTMiddlewareBuilder {
+func NewLoginJWTMiddlewareBuilder(jwtHdl ijwt.Handler) *LoginJWTMiddlewareBuilder {
 	return &LoginJWTMiddlewareBuilder{
-		Handler: hdl,
+		Handler: jwtHdl,
 	}
 }
 
-func (m *LoginJWTMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		path := ctx.Request.URL.Path
-		if path == "/users/signup" ||
-			path == "/users/login" ||
-			path == "/users/login_sms/code/send" ||
-			path == "/users/login_sms" ||
-			path == "/oauth2/wechat/authurl" ||
-			path == "/oauth2/wechat/callback" {
-			// 不需要登录校验
-			return
+func (l *LoginJWTMiddlewareBuilder) IgnorePaths(paths string) *LoginJWTMiddlewareBuilder {
+	l.paths = append(l.paths, paths)
+	return l
+}
+
+func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
+	//go的方式编码二进制
+	gob.Register(time.Now())
+	return func(c *gin.Context) {
+		for _, path := range l.paths {
+			if c.Request.URL.Path == path {
+				return
+			}
 		}
-		tokenStr := m.ExtractToken(ctx)
-		var uc ijwt.UserClaims
-		token, err := jwt.ParseWithClaims(tokenStr, &uc, func(token *jwt.Token) (interface{}, error) {
-			return ijwt.JWTKey, nil
+		tokenStr := l.ExtractToken(c)
+		claims := &ijwt.UserClaims{}
+
+		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+			return ijwt.AtKey, nil
 		})
 		if err != nil {
-			// token 不对，token 是伪造的
-			ctx.AbortWithStatus(http.StatusUnauthorized)
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-		if token == nil || !token.Valid {
-			// 在这里发现 access_token 过期了，生成一个新的 access_token
-
-			// token 解析出来了，但是 token 可能是非法的，或者过期了的
-			ctx.AbortWithStatus(http.StatusUnauthorized)
+		if token == nil || !token.Valid || claims.Uid == 0 {
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
 
-		// 这里看
-		err = m.CheckSession(ctx, uc.Ssid)
+		if claims.UserAgent != c.Request.UserAgent() {
+			//严重问题
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		err = l.CheckSession(c, claims.Ssid)
 		if err != nil {
-			// token 无效或者 redis 有问题
-			ctx.AbortWithStatus(http.StatusUnauthorized)
+			//要么redis有问题，要不已经退出登陆
+			c.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}
-
-		// 可以兼容 Redis 异常的情况
-		// 做好监控，监控有没有 error
-		//if cnt > 0 {
-		//	// token 无效或者 redis 有问题
-		//	ctx.AbortWithStatus(http.StatusUnauthorized)
-		//	return
+		//已经用了长短token
+		//now := time.Now()
+		//if claims.ExpiresAt.Sub(now) < time.Second*50 {
+		//	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute))
+		//	tokenStr, err = token.SignedString([]byte("fb0e22c79ac75679e9881e6ba183b354"))
+		//	c.Header("x-jwt-token", tokenStr)
+		//	if err != nil {
+		//		// 这边不要中断，因为仅仅是过期时间没有刷新，但是用户是登录了的
+		//		log.Println(err)
+		//	}
 		//}
 
-		ctx.Set("user", uc)
+		//c.Set("userId", claims.Uid)
+		c.Set("claims", claims)
 	}
 }

@@ -1,7 +1,7 @@
-.PHONY: docker
+.PHONY:docker
+#只有Makefile
 docker:
-	@rm webook || true
-	@go mod tidy
+	@rm -f webook || true
 	@GOOS=linux GOARCH=arm go build -tags=k8s -o webook .
-	@docker rmi -f flycash/webook:v0.0.1
-	@docker build -t flycash/webook:v0.0.1 .
+	@docker rmi -f lee/webook:v0.01
+	@docker build -t lee/webook:v0.01 .

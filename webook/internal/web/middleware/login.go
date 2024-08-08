@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"encoding/gob"
-	"fmt"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -10,45 +9,53 @@ import (
 )
 
 type LoginMiddlewareBuilder struct {
+	paths []string
 }
 
-func (m *LoginMiddlewareBuilder) CheckLogin() gin.HandlerFunc {
-	// 注册一下这个类型
+func NewLoginMiddlewareBuilder() *LoginMiddlewareBuilder {
+	return &LoginMiddlewareBuilder{}
+}
+
+func (l *LoginMiddlewareBuilder) IgnorePaths(paths string) *LoginMiddlewareBuilder {
+	l.paths = append(l.paths, paths)
+	return l
+}
+
+func (l *LoginMiddlewareBuilder) Build() gin.HandlerFunc {
+	//go的方式编码二进制
 	gob.Register(time.Now())
-	return func(ctx *gin.Context) {
-		path := ctx.Request.URL.Path
-		if path == "/users/signup" || path == "/users/login" {
-			// 不需要登录校验
-			return
-		}
-		sess := sessions.Default(ctx)
-		userId := sess.Get("userId")
-		if userId == nil {
-			// 中断，不要往后执行，也就是不要执行后面的业务逻辑
-			ctx.AbortWithStatus(http.StatusUnauthorized)
-			return
-		}
-
-		now := time.Now()
-		//ctx.Next()// 执行业务
-		// 在执行业务之后搞点什么
-		//duration := time.Now().Sub(now)
-
-		// 我怎么知道，要刷新了呢？
-		// 假如说，我们的策略是每分钟刷一次，我怎么知道，已经过了一分钟？
-		const updateTimeKey = "update_time"
-		// 试着拿出上一次刷新时间
-		val := sess.Get(updateTimeKey)
-		lastUpdateTime, ok := val.(time.Time)
-		if val == nil || !ok || now.Sub(lastUpdateTime) > time.Second*10 {
-			// 你这是第一次进来
-			sess.Set(updateTimeKey, now)
-			sess.Set("userId", userId)
-			err := sess.Save()
-			if err != nil {
-				// 打日志
-				fmt.Println(err)
+	return func(c *gin.Context) {
+		for _, path := range l.paths {
+			if c.Request.URL.Path == path {
+				return
 			}
+		}
+		//if c.Request.URL.Path == "/users/login" ||
+		//	c.Request.URL.Path == "/users/signup" {
+		//	return
+		//}
+		session := sessions.Default(c)
+		id := session.Get("userId")
+		if id == nil {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		updateTime := session.Get("updateTime")
+		//说明没刷新过
+		now := time.Now()
+		if updateTime == nil {
+			session.Set("updateTime", now)
+			session.Save()
+			return
+		}
+		//session.Set("update_time", now)
+		updateTimeVal, ok := updateTime.(time.Time)
+		if !ok {
+			c.AbortWithStatus(http.StatusInternalServerError)
+		}
+		if now.Sub(updateTimeVal) > time.Minute {
+			session.Set("updateTime", now)
+			session.Save()
 		}
 	}
 }

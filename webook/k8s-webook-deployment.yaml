@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+#说明这里部署的是deployment
+kind: Deployment
+metadata:
+  #也叫做webook，但是是一个deployment
+  name: webook
+spec:
+  #pod 副本数量是3
+  replicas: 3
+  selector:
+    matchLabels:
+      app:  webook
+  template:
+    metadata:
+      labels:
+        app: webook
+    spec:
+      containers:
+        - name: webook
+          image: lee/webook:v0.01
+          ports:
+            - containerPort: 8080 #与入口监听的端口要一致

@@ -5,12 +5,14 @@ import (
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache"
 )
 
-var ErrCodeVerifyTooMany = cache.ErrCodeVerifyTooMany
-var ErrCodeSendTooMany = cache.ErrCodeSendTooMany
+var (
+	ErrCodeSendTooMany        = cache.ErrCodeSendTooMany
+	ErrCodeVerifyTooManyTimes = cache.ErrCodeVerifyTooManyTimes
+)
 
 type CodeRepository interface {
-	Set(ctx context.Context, biz, phone, code string) error
-	Verify(ctx context.Context, biz, phone, code string) (bool, error)
+	Store(ctx context.Context, biz string, phone string, code string) error
+	Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error)
 }
 
 type CachedCodeRepository struct {
@@ -23,10 +25,11 @@ func NewCodeRepository(c cache.CodeCache) CodeRepository {
 	}
 }
 
-func (c *CachedCodeRepository) Set(ctx context.Context, biz, phone, code string) error {
-	return c.cache.Set(ctx, biz, phone, code)
+func (r *CachedCodeRepository) Store(ctx context.Context, biz string, phone string, code string) error {
+	return r.cache.Set(ctx, biz, phone, code)
 }
 
-func (c *CachedCodeRepository) Verify(ctx context.Context, biz, phone, code string) (bool, error) {
-	return c.cache.Verify(ctx, biz, phone, code)
+func (r *CachedCodeRepository) Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error) {
+	return r.cache.Verify(ctx, biz, phone, inputCode)
+
 }

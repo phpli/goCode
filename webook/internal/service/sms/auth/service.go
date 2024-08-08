@@ -2,28 +2,34 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"gitee.com/geekbang/basic-go/webook/internal/service/sms"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 type SMSService struct {
 	svc sms.Service
-	key []byte
+	key string
 }
 
-func (s *SMSService) Send(ctx context.Context, tplToken string, args []string, numbers ...string) error {
-	var claims SMSClaims
-	_, err := jwt.ParseWithClaims(tplToken, &claims, func(token *jwt.Token) (interface{}, error) {
+//send 一个是 []*string
+
+func (s *SMSService) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
+	//是否是权限校验
+	var tc Claims
+	token, err := jwt.ParseWithClaims(biz, &tc, func(token *jwt.Token) (interface{}, error) {
 		return s.key, nil
 	})
 	if err != nil {
 		return err
 	}
-	return s.svc.Send(ctx, claims.Tpl, args, numbers...)
+	if !token.Valid {
+		return errors.New("invalid token")
+	}
+	return s.svc.Send(ctx, biz, args, numbers...)
 }
 
-type SMSClaims struct {
+type Claims struct {
 	jwt.RegisteredClaims
 	Tpl string
-	// 额外加字段
 }

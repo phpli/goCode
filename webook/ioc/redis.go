@@ -6,20 +6,17 @@ import (
 )
 
 func InitRedis() redis.Cmdable {
-	// 这个是假设你有一个独立的 Redis 的配置文件
-	return redis.NewClient(&redis.Options{
-		Addr: viper.GetString("redis.addr"),
+	//addr := viper.GetString("redis.addr")
+	type Config struct {
+		Addr string `yaml:"addr"`
+	}
+	var cfg Config
+	err := viper.UnmarshalKey("redis", &cfg)
+	if err != nil {
+		panic(err)
+	}
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: cfg.Addr,
 	})
-}
-
-func InitRedisV1() redis.Cmdable {
-	// 这个是假设你有一个独立的 Redis 的配置文件
-	v := viper.New()
-	v.SetConfigType("conf")
-	v.SetConfigFile("config/redis.conf")
-	addr := v.GetString("addr")
-	return redis.NewClient(&redis.Options{
-		//Addr: viper.GetString("redis.addr"),
-		Addr: addr,
-	})
+	return redisClient
 }

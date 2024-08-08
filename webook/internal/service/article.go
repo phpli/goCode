@@ -4,106 +4,85 @@ import (
 	"context"
 	"errors"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
-	"gitee.com/geekbang/basic-go/webook/internal/repository"
-	"gitee.com/geekbang/basic-go/webook/pkg/logger"
+	"gitee.com/geekbang/basic-go/webook/internal/repository/article"
+	logger2 "gitee.com/geekbang/basic-go/webook/pkg/logger"
+	"time"
 )
 
 type ArticleService interface {
-	Save(ctx context.Context, art domain.Article) (int64, error)
-	Publish(ctx context.Context, art domain.Article) (int64, error)
-	Withdraw(ctx context.Context, uid int64, id int64) error
-	GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error)
-	GetById(ctx context.Context, id int64) (domain.Article, error)
-	GetPubById(ctx context.Context, id int64) (domain.Article, error)
+	Save(ctx context.Context, article domain.Article) (int64, error)
+	Publish(ctx context.Context, article domain.Article) (int64, error)
+	PublishV1(ctx context.Context, article domain.Article) (int64, error)
 }
 
 type articleService struct {
-	repo repository.ArticleRepository
+	//v  v 和v1是互斥的
+	repo article.ArticleRepository
 
-	// V1 写法专用
-	readerRepo repository.ArticleReaderRepository
-	authorRepo repository.ArticleAuthorRepository
-	l          logger.LoggerV1
+	//v1
+	author article.ArticleAuthorRepository
+	reader article.ArticleReaderRepository
+	l      logger2.LoggerV1
 }
 
-func (a *articleService) GetPubById(ctx context.Context, id int64) (domain.Article, error) {
-	return a.repo.GetPubById(ctx, id)
-}
-
-func (a *articleService) GetById(ctx context.Context, id int64) (domain.Article, error) {
-	return a.repo.GetById(ctx, id)
-}
-
-func (a *articleService) GetByAuthor(ctx context.Context, uid int64, offset int, limit int) ([]domain.Article, error) {
-	return a.repo.GetByAuthor(ctx, uid, offset, limit)
-}
-
-func (a *articleService) Withdraw(ctx context.Context, uid int64, id int64) error {
-	return a.repo.SyncStatus(ctx, uid, id, domain.ArticleStatusPrivate)
-}
-
-func (a *articleService) Publish(ctx context.Context, art domain.Article) (int64, error) {
-	art.Status = domain.ArticleStatusPublished
-	return a.repo.Sync(ctx, art)
-}
-
-func (a *articleService) PublishV1(ctx context.Context, art domain.Article) (int64, error) {
-	// 想到这里要先操作制作库
-	// 这里操作线上库
-	var (
-		id  = art.Id
-		err error
-	)
-
-	if art.Id > 0 {
-		err = a.authorRepo.Update(ctx, art)
-	} else {
-		id, err = a.authorRepo.Create(ctx, art)
-	}
-	if err != nil {
-		return 0, err
-	}
-	art.Id = id
-	for i := 0; i < 3; i++ {
-		// 我可能线上库已经有数据了
-		// 也可能没有
-		err = a.readerRepo.Save(ctx, art)
-		if err != nil {
-			// 多接入一些 tracing 的工具
-			a.l.Error("保存到制作库成功但是到线上库失败",
-				logger.Int64("aid", art.Id),
-				logger.Error(err))
-		} else {
-			return id, nil
-		}
-	}
-	a.l.Error("保存到制作库成功但是到线上库失败，重试耗尽",
-		logger.Int64("aid", art.Id),
-		logger.Error(err))
-	return id, errors.New("保存到线上库失败，重试次数耗尽")
-}
-
-func NewArticleServiceV1(
-	readerRepo repository.ArticleReaderRepository,
-	authorRepo repository.ArticleAuthorRepository, l logger.LoggerV1) *articleService {
-	return &articleService{
-		readerRepo: readerRepo,
-		authorRepo: authorRepo,
-		l:          l,
-	}
-}
-
-func NewArticleService(repo repository.ArticleRepository) ArticleService {
+func NewArticleService(repo article.ArticleRepository) ArticleService {
 	return &articleService{
 		repo: repo,
 	}
 }
 
-func (a *articleService) Save(ctx context.Context, art domain.Article) (int64, error) {
-	art.Status = domain.ArticleStatusUnpublished
-	if art.Id > 0 {
-		err := a.repo.Update(ctx, art)
-		return art.Id, err
+func NewArticleServiceV1(author article.ArticleAuthorRepository, reader article.ArticleReaderRepository, l logger2.LoggerV1) ArticleService {
+	return &articleService{
+		author: author,
+		reader: reader,
+		l:      l,
 	}
-	return a.repo.Create(ctx, art)
+}
+func (a *articleService) Save(ctx context.Context, article domain.Article) (int64, error) {
+	article.Status = domain.ArticleStatusUnpublish
+	if article.Id > 0 {
+		err := a.repo.Update(ctx, article)
+		return article.Id, err
+	}
+	return a.repo.Create(ctx, article)
+}
+
+func (a *articleService) Publish(ctx context.Context, article domain.Article) (int64, error) {
+	//if article.Id > 0 {
+	//	err := a.repo.Update(ctx, article)
+	//	return article.Id, err
+	//}
+	//return a.repo.Create(ctx, article)
+	return a.repo.Sync(ctx, article)
+}
+
+func (a *articleService) PublishV1(ctx context.Context, article domain.Article) (int64, error) {
+	var (
+		id  = article.Id
+		err error
+	)
+	if article.Id > 0 {
+		err = a.author.Update(ctx, article)
+	} else {
+		id, err = a.author.Create(ctx, article)
+		if err != nil {
+			return 0, errors.New("mock db error")
+		}
+	}
+	if err != nil {
+		return 0, err
+	}
+	article.Id = id
+	for i := 0; i < 3; i++ {
+		time.Sleep(time.Second * time.Duration(i))
+		id, err = a.reader.Save(ctx, article)
+		if err == nil {
+			break
+		}
+		a.l.Error("部分失败，保存到线上库失败", logger2.String("article_id", id), logger2.Error(err))
+	}
+	if err != nil {
+		a.l.Error("部分失败，重试彻底失败", logger2.String("article_id", id), logger2.Error(err))
+	}
+	return id, err
 }

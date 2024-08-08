@@ -8,49 +8,54 @@ import (
 	"math/rand"
 )
 
-var ErrCodeSendTooMany = repository.ErrCodeSendTooMany
+var codeTplId = "18888"
+var (
+	ErrCodeVerifyTooManyTimes = repository.ErrCodeVerifyTooManyTimes
+	ErrCodeSendTooMany        = repository.ErrCodeSendTooMany
+)
 
 type CodeService interface {
-	Send(ctx context.Context, biz, phone string) error
-	Verify(ctx context.Context,
-		biz, phone, inputCode string) (bool, error)
+	Send(ctx context.Context, biz string, phone string) error
+	Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error)
 }
 
 type codeService struct {
-	repo repository.CodeRepository
-	sms  sms.Service
+	repo   repository.CodeRepository
+	smsSvc sms.Service
 }
 
-func NewCodeService(repo repository.CodeRepository, smsSvc sms.Service) CodeService {
+func NewCodeService(codeRepository repository.CodeRepository, service sms.Service) CodeService {
 	return &codeService{
-		repo: repo,
-		sms:  smsSvc,
+		repo:   codeRepository,
+		smsSvc: service,
 	}
 }
 
-func (svc *codeService) Send(ctx context.Context, biz, phone string) error {
-	code := svc.generate()
-	err := svc.repo.Set(ctx, biz, phone, code)
-	// 你在这儿，是不是要开始发送验证码了？
+func (svc *codeService) Send(ctx context.Context, biz string, phone string) error {
+	//生成一个验证码
+	//塞进redis
+	//发出
+	code := svc.generateCode()
+	err := svc.repo.Store(ctx, biz, phone, code)
 	if err != nil {
 		return err
 	}
-	const codeTplId = "1877556"
-	return svc.sms.Send(ctx, codeTplId, []string{code}, phone)
+	err = svc.smsSvc.Send(ctx, codeTplId, []string{code}, phone)
+	//if err != nil {
+	//
+	//}
+	return nil
 }
 
-func (svc *codeService) Verify(ctx context.Context,
-	biz, phone, inputCode string) (bool, error) {
-	ok, err := svc.repo.Verify(ctx, biz, phone, inputCode)
-	if err == repository.ErrCodeVerifyTooMany {
-		// 相当于，我们对外面屏蔽了验证次数过多的错误，我们就是告诉调用者，你这个不对
-		return false, nil
-	}
-	return ok, err
+func (svc *codeService) Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error) {
+	return svc.repo.Verify(ctx, biz, phone, inputCode)
 }
 
-func (svc *codeService) generate() string {
-	// 0-999999
-	code := rand.Intn(1000000)
-	return fmt.Sprintf("%06d", code)
+func (svc *codeService) generateCode() string {
+	num := rand.Intn(1000000)
+	return fmt.Sprintf("%06d", num)
 }
+
+//func (svc *codeService) VerifyV1(ctx context.Context, biz string, phone string, inputCode string) error {
+//	return nil
+//}

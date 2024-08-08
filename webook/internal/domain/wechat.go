@@ -1,6 +1,6 @@
 package domain
 
 type WechatInfo struct {
-	UnionId string
-	OpenId  string
+	OpenID  string
+	UnionID string
 }

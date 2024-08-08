@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"errors"
-	"fmt"
 	"gitee.com/geekbang/basic-go/webook/internal/repository/cache/redismocks"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -12,92 +11,81 @@ import (
 )
 
 func TestRedisCodeCache_Set(t *testing.T) {
-	keyFunc := func(biz, phone string) string {
-		return fmt.Sprintf("phone_code:%s:%s", biz, phone)
-	}
-	testCases := []struct {
-		name  string
-		mock  func(ctrl *gomock.Controller) redis.Cmdable
-		ctx   context.Context
-		biz   string
-		phone string
-		code  string
-
+	tests := []struct {
+		name string
+		mock func(ctrl *gomock.Controller) redis.Cmdable
+		//输入
+		ctx     context.Context
+		biz     string
+		phone   string
+		code    string
 		wantErr error
 	}{
 		{
-			name: "设置成功",
+			name: "验证码设置成功",
 			mock: func(ctrl *gomock.Controller) redis.Cmdable {
-				res := redismocks.NewMockCmdable(ctrl)
-				cmd := redis.NewCmd(context.Background())
-				cmd.SetErr(nil)
-				cmd.SetVal(int64(0))
-				res.EXPECT().Eval(gomock.Any(), luaSetCode,
-					[]string{keyFunc("test", "15212345678")},
-					[]any{"123456"}).Return(cmd)
-				return res
+				cmd := redismocks.NewMockCmdable(ctrl)
+				res := redis.NewCmd(context.Background())
+				res.SetVal(int64(0))
+
+				cmd.EXPECT().Eval(gomock.Any(), luaSetCode, []string{"phone_code:login:152"}, []any{"1234879"}).Return(res)
+				return cmd
 			},
 			ctx:     context.Background(),
-			biz:     "test",
-			phone:   "15212345678",
-			code:    "123456",
+			biz:     "login",
+			phone:   "152",
+			code:    "1234879",
 			wantErr: nil,
 		},
-
 		{
-			name: "redis返回error",
+			name: "redis错误",
 			mock: func(ctrl *gomock.Controller) redis.Cmdable {
-				res := redismocks.NewMockCmdable(ctrl)
-				cmd := redis.NewCmd(context.Background())
-				cmd.SetErr(errors.New("redis错误"))
-				res.EXPECT().Eval(gomock.Any(), luaSetCode,
-					[]string{keyFunc("test", "15212345678")},
-					[]any{"123456"}).Return(cmd)
-				return res
+				cmd := redismocks.NewMockCmdable(ctrl)
+				res := redis.NewCmd(context.Background())
+				//res.SetVal(int64(0))
+				res.SetErr(errors.New("mock error"))
+				cmd.EXPECT().Eval(gomock.Any(), luaSetCode, []string{"phone_code:login:152"}, []any{"1234879"}).Return(res)
+				return cmd
 			},
 			ctx:     context.Background(),
-			biz:     "test",
-			phone:   "15212345678",
-			code:    "123456",
-			wantErr: errors.New("redis错误"),
-		},
-		{
-			name: "验证码不存在过期时间",
-			mock: func(ctrl *gomock.Controller) redis.Cmdable {
-				res := redismocks.NewMockCmdable(ctrl)
-				cmd := redis.NewCmd(context.Background())
-				cmd.SetVal(int64(-2))
-				res.EXPECT().Eval(gomock.Any(), luaSetCode,
-					[]string{keyFunc("test", "15212345678")},
-					[]any{"123456"}).Return(cmd)
-				return res
-			},
-			ctx:     context.Background(),
-			biz:     "test",
-			phone:   "15212345678",
-			code:    "123456",
-			wantErr: errors.New("验证码存在，但是没有过期时间"),
+			biz:     "login",
+			phone:   "152",
+			code:    "1234879",
+			wantErr: errors.New("mock error"),
 		},
 		{
 			name: "发送太频繁",
 			mock: func(ctrl *gomock.Controller) redis.Cmdable {
-				res := redismocks.NewMockCmdable(ctrl)
-				cmd := redis.NewCmd(context.Background())
-				cmd.SetVal(int64(-1))
-				res.EXPECT().Eval(gomock.Any(), luaSetCode,
-					[]string{keyFunc("test", "15212345678")},
-					[]any{"123456"}).Return(cmd)
-				return res
+				cmd := redismocks.NewMockCmdable(ctrl)
+				res := redis.NewCmd(context.Background())
+				res.SetVal(int64(-1))
+				cmd.EXPECT().Eval(gomock.Any(), luaSetCode, []string{"phone_code:login:152"}, []any{"1234879"}).Return(res)
+				return cmd
 			},
 			ctx:     context.Background(),
-			biz:     "test",
-			phone:   "15212345678",
-			code:    "123456",
+			biz:     "login",
+			phone:   "152",
+			code:    "1234879",
 			wantErr: ErrCodeSendTooMany,
 		},
+		{
+			name: "系统错误",
+			mock: func(ctrl *gomock.Controller) redis.Cmdable {
+				cmd := redismocks.NewMockCmdable(ctrl)
+				res := redis.NewCmd(context.Background())
+				res.SetVal(int64(-10))
+				res.SetErr(errors.New("系统错误"))
+				cmd.EXPECT().Eval(gomock.Any(), luaSetCode, []string{"phone_code:login:152"}, []any{"1234879"}).Return(res)
+				return cmd
+			},
+			ctx:     context.Background(),
+			biz:     "login",
+			phone:   "152",
+			code:    "1234879",
+			wantErr: errors.New("系统错误"),
+		},
 	}
-
-	for _, tc := range testCases {
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()

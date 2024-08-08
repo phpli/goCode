@@ -6,9 +6,16 @@ const instance = axios.create({
     withCredentials: true
 })
 
+export interface Result<T> {
+    code: number,
+    msg: string,
+    data: T,
+}
+
 
 instance.interceptors.response.use(function (resp) {
     const newToken = resp.headers["x-jwt-token"]
+    console.log(newToken)
     const newRefreshToken = resp.headers["x-refresh-token"]
     if (newToken) {
         localStorage.setItem("token", newToken)

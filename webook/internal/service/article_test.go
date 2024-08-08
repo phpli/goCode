@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"gitee.com/geekbang/basic-go/webook/internal/domain"
-	"gitee.com/geekbang/basic-go/webook/internal/repository"
-	repomocks "gitee.com/geekbang/basic-go/webook/internal/repository/mocks"
+	"gitee.com/geekbang/basic-go/webook/internal/repository/article"
+	artrepomocks "gitee.com/geekbang/basic-go/webook/internal/repository/mocks/article"
 	"gitee.com/geekbang/basic-go/webook/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
@@ -13,204 +13,149 @@ import (
 )
 
 func Test_articleService_Publish(t *testing.T) {
-	testCases := []struct {
-		name string
-		mock func(ctrl *gomock.Controller) (
-			repository.ArticleAuthorRepository,
-			repository.ArticleReaderRepository)
-
-		art domain.Article
-
-		wantId  int64
+	tests := []struct {
+		name    string
+		mock    func(ctrl *gomock.Controller) (article.ArticleAuthorRepository, article.ArticleReaderRepository)
+		art     domain.Article
 		wantErr error
+		wantId  int64
 	}{
 		{
-			name: "新建发表成功",
-			mock: func(ctrl *gomock.Controller) (
-				repository.ArticleAuthorRepository,
-				repository.ArticleReaderRepository) {
-				authorRepo := repomocks.NewMockArticleAuthorRepository(ctrl)
-				authorRepo.EXPECT().Create(gomock.Any(), domain.Article{
-					Title:   "我的标题",
+			name: "新建发布成功",
+			mock: func(ctrl *gomock.Controller) (article.ArticleAuthorRepository, article.ArticleReaderRepository) {
+				author := artrepomocks.NewMockArticleAuthorRepository(ctrl)
+				author.EXPECT().Create(gomock.Any(), domain.Article{
+					Title:   "我的发布",
 					Content: "我的内容",
 					Author: domain.Author{
 						Id: 123,
 					},
 				}).Return(int64(1), nil)
-				readerRepo := repomocks.NewMockArticleReaderRepository(ctrl)
-				readerRepo.EXPECT().Save(gomock.Any(), domain.Article{
-					Id:      1,
-					Title:   "我的标题",
+				reader := artrepomocks.NewMockArticleReaderRepository(ctrl)
+				reader.EXPECT().Save(gomock.Any(), domain.Article{
+					Title:   "我的发布",
 					Content: "我的内容",
 					Author: domain.Author{
 						Id: 123,
 					},
-				})
-				return authorRepo, readerRepo
+					Id: 1,
+				}).Return(int64(1), nil)
+				return author, reader
 			},
 			art: domain.Article{
-				Title:   "我的标题",
+				Title:   "我的发布",
 				Content: "我的内容",
 				Author: domain.Author{
 					Id: 123,
 				},
 			},
-			wantId: 1,
-		},
-		{
-			name: "修改并新发表成功",
-			mock: func(ctrl *gomock.Controller) (
-				repository.ArticleAuthorRepository,
-				repository.ArticleReaderRepository) {
-				authorRepo := repomocks.NewMockArticleAuthorRepository(ctrl)
-				authorRepo.EXPECT().Update(gomock.Any(), domain.Article{
-					Id:      11,
-					Title:   "我的标题",
-					Content: "我的内容",
-					Author: domain.Author{
-						Id: 123,
-					},
-				}).Return(nil)
-				readerRepo := repomocks.NewMockArticleReaderRepository(ctrl)
-				readerRepo.EXPECT().Save(gomock.Any(), domain.Article{
-					Id:      11,
-					Title:   "我的标题",
-					Content: "我的内容",
-					Author: domain.Author{
-						Id: 123,
-					},
-				})
-				return authorRepo, readerRepo
-			},
-			art: domain.Article{
-				Id:      11,
-				Title:   "我的标题",
-				Content: "我的内容",
-				Author: domain.Author{
-					Id: 123,
-				},
-			},
-			wantId: 11,
-		},
-		{
-			name: "修改并发表失败，重试成功",
-			mock: func(ctrl *gomock.Controller) (
-				repository.ArticleAuthorRepository,
-				repository.ArticleReaderRepository) {
-				authorRepo := repomocks.NewMockArticleAuthorRepository(ctrl)
-				authorRepo.EXPECT().Update(gomock.Any(), domain.Article{
-					Id:      11,
-					Title:   "我的标题",
-					Content: "我的内容",
-					Author: domain.Author{
-						Id: 123,
-					},
-				}).Return(nil)
-				readerRepo := repomocks.NewMockArticleReaderRepository(ctrl)
-				readerRepo.EXPECT().Save(gomock.Any(), domain.Article{
-					Id:      11,
-					Title:   "我的标题",
-					Content: "我的内容",
-					Author: domain.Author{
-						Id: 123,
-					},
-				}).Return(errors.New("mock db error"))
-				readerRepo.EXPECT().Save(gomock.Any(), domain.Article{
-					Id:      11,
-					Title:   "我的标题",
-					Content: "我的内容",
-					Author: domain.Author{
-						Id: 123,
-					},
-				}).Return(nil)
-				return authorRepo, readerRepo
-			},
-			art: domain.Article{
-				Id:      11,
-				Title:   "我的标题",
-				Content: "我的内容",
-				Author: domain.Author{
-					Id: 123,
-				},
-			},
-			wantId:  11,
 			wantErr: nil,
+			wantId:  1,
 		},
 		{
-			name: "修改并发表失败，重试失败",
-			mock: func(ctrl *gomock.Controller) (
-				repository.ArticleAuthorRepository,
-				repository.ArticleReaderRepository) {
-				authorRepo := repomocks.NewMockArticleAuthorRepository(ctrl)
-				authorRepo.EXPECT().Update(gomock.Any(), domain.Article{
-					Id:      11,
-					Title:   "我的标题",
+			name: "修改并发布成功",
+			mock: func(ctrl *gomock.Controller) (article.ArticleAuthorRepository, article.ArticleReaderRepository) {
+				author := artrepomocks.NewMockArticleAuthorRepository(ctrl)
+				author.EXPECT().Update(gomock.Any(), domain.Article{
+					Title:   "我的发布",
 					Content: "我的内容",
 					Author: domain.Author{
 						Id: 123,
 					},
+					Id: 2,
 				}).Return(nil)
-				readerRepo := repomocks.NewMockArticleReaderRepository(ctrl)
-				readerRepo.EXPECT().Save(gomock.Any(), domain.Article{
-					Id:      11,
-					Title:   "我的标题",
+				reader := artrepomocks.NewMockArticleReaderRepository(ctrl)
+				reader.EXPECT().Save(gomock.Any(), domain.Article{
+					Title:   "我的发布",
 					Content: "我的内容",
 					Author: domain.Author{
 						Id: 123,
 					},
-				}).Times(3).Return(errors.New("mock db error"))
-				return authorRepo, readerRepo
+					Id: 2,
+				}).Return(int64(2), nil)
+				return author, reader
 			},
 			art: domain.Article{
-				Id:      11,
-				Title:   "我的标题",
+				Title:   "我的发布",
 				Content: "我的内容",
 				Author: domain.Author{
 					Id: 123,
 				},
+				Id: 2,
 			},
-			wantId:  11,
-			wantErr: errors.New("保存到线上库失败，重试次数耗尽"),
+			wantId: 2,
 		},
 		{
-			name: "修改并保存到制作库失败",
-			mock: func(ctrl *gomock.Controller) (
-				repository.ArticleAuthorRepository,
-				repository.ArticleReaderRepository) {
-				authorRepo := repomocks.NewMockArticleAuthorRepository(ctrl)
-				authorRepo.EXPECT().Update(gomock.Any(), domain.Article{
-					Id:      11,
+			name: "保存到制作库失败",
+			mock: func(ctrl *gomock.Controller) (article.ArticleAuthorRepository,
+				article.ArticleReaderRepository) {
+				author := artrepomocks.NewMockArticleAuthorRepository(ctrl)
+				author.EXPECT().Update(gomock.Any(), domain.Article{
+					Id:      2,
 					Title:   "我的标题",
 					Content: "我的内容",
 					Author: domain.Author{
 						Id: 123,
 					},
 				}).Return(errors.New("mock db error"))
-				readerRepo := repomocks.NewMockArticleReaderRepository(ctrl)
-				return authorRepo, readerRepo
+				reader := artrepomocks.NewMockArticleReaderRepository(ctrl)
+				return author, reader
 			},
 			art: domain.Article{
-				Id:      11,
+				Id:      2,
 				Title:   "我的标题",
 				Content: "我的内容",
 				Author: domain.Author{
 					Id: 123,
 				},
 			},
+			//wantId:  int64(0),
+			wantErr: errors.New("mock db error"),
+		},
+		{
+			name: "保存到制作库成功，但是线上库失败",
+			mock: func(ctrl *gomock.Controller) (article.ArticleAuthorRepository, article.ArticleReaderRepository) {
+				author := artrepomocks.NewMockArticleAuthorRepository(ctrl)
+				author.EXPECT().Update(gomock.Any(), domain.Article{
+					Title:   "我的发布",
+					Content: "我的内容",
+					Author: domain.Author{
+						Id: 123,
+					},
+					Id: 2,
+				}).Return(nil)
+				reader := artrepomocks.NewMockArticleReaderRepository(ctrl)
+				reader.EXPECT().Save(gomock.Any(), domain.Article{
+					Title:   "我的发布",
+					Content: "我的内容",
+					Author: domain.Author{
+						Id: 123,
+					},
+					Id: 2,
+				}).Times(3).Return(int64(0), errors.New("mock db error"))
+				return author, reader
+			},
+			art: domain.Article{
+				Title:   "我的发布",
+				Content: "我的内容",
+				Author: domain.Author{
+					Id: 123,
+				},
+				Id: 2,
+			},
+			wantId:  0,
 			wantErr: errors.New("mock db error"),
 		},
 	}
-
-	for _, tc := range testCases {
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
-			authorRepo, readerRepo := tc.mock(ctrl)
-			svc := NewArticleServiceV1(readerRepo, authorRepo,
-				logger.NewNopLogger())
+			author, reader := tc.mock(ctrl)
+			svc := NewArticleServiceV1(author, reader, &logger.NopLogger{})
 			id, err := svc.PublishV1(context.Background(), tc.art)
-			assert.Equal(t, tc.wantErr, err)
 			assert.Equal(t, tc.wantId, id)
+			assert.Equal(t, tc.wantErr, err)
 		})
 	}
 }

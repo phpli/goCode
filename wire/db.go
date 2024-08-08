@@ -1,19 +1,8 @@
 package wire
 
-import (
-	"github.com/redis/go-redis/v9"
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
-)
+import "gorm.io/gorm"
 
 func InitDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("xxx"))
-	if err != nil {
-		panic(err)
-	}
-	return db
-}
-
-func InitRedis() redis.Cmdable {
-	return redis.NewClient(&redis.Options{Addr: "xxx"})
+	// 因为主要是演示 wire，所以这里我们随便写一下
+	return &gorm.DB{}
 }

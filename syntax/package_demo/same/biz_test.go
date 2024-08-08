@@ -1,1 +1,1 @@
-package same1
+package same

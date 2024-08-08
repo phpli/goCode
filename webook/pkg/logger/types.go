@@ -7,9 +7,10 @@ type Logger interface {
 	Error(msg string, args ...any)
 }
 
-func example() {
+func LoggerExample() {
 	var l Logger
-	l.Info("用户的微信 id %d", 123)
+	phone := "12316*****12"
+	l.Info("用户未注册，，手机号是%s", phone)
 }
 
 type LoggerV1 interface {
@@ -20,20 +21,31 @@ type LoggerV1 interface {
 }
 
 type Field struct {
-	Key string
-	Val any
+	Key   string
+	Value any
 }
 
-func exampleV1() {
+func LoggerV1Example() {
 	var l LoggerV1
-	// 这是一个新用户 union_id=123
-	l.Info("这是一个新用户", Field{Key: "union_id", Val: 123})
+	phone := "12316*****12"
+	l.Info("用户未注册", Field{
+		Key:   "phone",
+		Value: phone,
+	})
 }
 
 type LoggerV2 interface {
-	// 它要去 args 必须是偶数，并且是以 key1,value1,key2,value2 的形式传递
 	Debug(msg string, args ...any)
 	Info(msg string, args ...any)
 	Warn(msg string, args ...any)
 	Error(msg string, args ...any)
+}
+
+func LoggerV2Example() {
+	var l LoggerV2
+	phone := "12316*****12"
+	l.Info("用户未注册", Field{
+		Key:   "phone",
+		Value: phone,
+	})
 }
