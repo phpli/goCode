@@ -13,6 +13,8 @@ type ArticleDAO interface {
 	UpdateById(ctx context.Context, article Article) error
 	Sync(ctx context.Context, article Article) (int64, error)
 	Upsert(ctx context.Context, article PublishedArticle) error
+	GetById(ctx context.Context, id int64) (Article, error)
+	//SyncV2(ctx context.Context, article domain.Article) (int64, error)
 }
 
 func NewGORMArticleDAO(db *gorm.DB) ArticleDAO {
@@ -23,6 +25,13 @@ func NewGORMArticleDAO(db *gorm.DB) ArticleDAO {
 
 type GORMArticleDAO struct {
 	db *gorm.DB
+}
+
+func (G *GORMArticleDAO) GetById(ctx context.Context, id int64) (Article, error) {
+	var art Article
+	err := G.db.WithContext(ctx).
+		Where("id = ?", id).First(&art).Error
+	return art, err
 }
 
 func (G *GORMArticleDAO) Sync(ctx context.Context, article Article) (int64, error) {

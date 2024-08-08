@@ -23,7 +23,9 @@ type Result struct {
 
 type UserClaims struct {
 	Id        int64
+	Uid       int64
 	UserAgent string
 	Ssid      string
 	jwt.RegisteredClaims
+	VIP bool
 }

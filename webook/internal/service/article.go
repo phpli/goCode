@@ -13,6 +13,7 @@ type ArticleService interface {
 	Save(ctx context.Context, article domain.Article) (int64, error)
 	Publish(ctx context.Context, article domain.Article) (int64, error)
 	PublishV1(ctx context.Context, article domain.Article) (int64, error)
+	GetById(ctx context.Context, id int64) (domain.Article, error)
 }
 
 type articleService struct {
@@ -23,6 +24,10 @@ type articleService struct {
 	author article.ArticleAuthorRepository
 	reader article.ArticleReaderRepository
 	l      logger2.LoggerV1
+}
+
+func (a *articleService) GetById(ctx context.Context, id int64) (domain.Article, error) {
+	return a.repo.GetById(ctx, id)
 }
 
 func NewArticleService(repo article.ArticleRepository) ArticleService {
@@ -39,7 +44,7 @@ func NewArticleServiceV1(author article.ArticleAuthorRepository, reader article.
 	}
 }
 func (a *articleService) Save(ctx context.Context, article domain.Article) (int64, error) {
-	article.Status = domain.ArticleStatusUnpublish
+	article.Status = domain.ArticleStatusUnpublished
 	if article.Id > 0 {
 		err := a.repo.Update(ctx, article)
 		return article.Id, err
